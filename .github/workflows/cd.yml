@@ -1,10 +1,18 @@
-name: CD
+name: CD - Azure Multi Environment Platform
 
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - dr
+
       action:
-        description: "Choose operation"
+        description: "Operation"
         required: true
         default: "deploy"
         type: choice
@@ -13,66 +21,96 @@ on:
           - rollback
           - destroy
 
+      confirm_destroy:
+        description: "Type DESTROY to confirm destroy"
+        required: false
+
 permissions:
   id-token: write
   contents: read
 
+env:
+  TF_WORKING_DIR: infra
+
 jobs:
-  deploy:
+  platform:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure Login (OIDC)
+      # -----------------------
+      # Resolve Environment
+      # -----------------------
+      - name: Resolve environment variables
+        run: |
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            echo "TF_VARS_FILE=env/dev.tfvars" >> $GITHUB_ENV
+            echo "RG_NAME=azure-secure-devops-dev-rg" >> $GITHUB_ENV
+            echo "APP_NAME=azure-secure-devops-dev-app" >> $GITHUB_ENV
+          elif [ "${{ inputs.environment }}" = "dr" ]; then
+            echo "TF_VARS_FILE=env/dr.tfvars" >> $GITHUB_ENV
+            echo "RG_NAME=azure-secure-devops-dr-rg" >> $GITHUB_ENV
+            echo "APP_NAME=azure-secure-devops-dr-app" >> $GITHUB_ENV
+          fi
+
+      # -----------------------
+      # Azure Login (OIDC)
+      # -----------------------
+      - name: Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: infra
-
-      - name: Terraform Plan
-        run: terraform plan -var-file=env/dev.tfvars
-        working-directory: infra
-        
-      - name: Deploy Application
-        if: inputs.action == 'deploy'
-        run: terraform apply -auto-approve -var-file=env/dev.tfvars
-        working-directory: infra
-        
-      - name: Rollback via Slot Swap
-        if: inputs.action == 'rollback'
-        run: |
-            az webapp deployment slot swap \
-            --resource-group ${{ env.RG_NAME }} \
-            --name ${{ env.APP_NAME }} \
-            --slot staging
-
-  destroy:
-    needs: deploy
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
+      # -----------------------
+      # Terraform Setup
+      # -----------------------
       - uses: hashicorp/setup-terraform@v3
 
-      - run: terraform init
-        working-directory: infra
+      # -----------------------
+      # DEPLOY
+      # -----------------------
+      - name: Terraform Init
+        if: inputs.action == 'deploy'
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
 
-      - run: terraform destroy -auto-approve -var-file=env/dev.tfvars
-        working-directory: infra
+      - name: Terraform Apply
+        if: inputs.action == 'deploy'
+        run: terraform apply -auto-approve -var-file=${{ env.TF_VARS_FILE }}
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      # -----------------------
+      # ROLLBACK (Slot Swap)
+      # -----------------------
+      - name: Rollback - Slot Swap
+        if: inputs.action == 'rollback'
+        run: |
+          az webapp deployment slot swap \
+            --resource-group $RG_NAME \
+            --name $APP_NAME \
+            --slot staging
+
+      # -----------------------
+      # DESTROY SAFETY CHECK
+      # -----------------------
+      - name: Validate Destroy Confirmation
+        if: inputs.action == 'destroy' && inputs.confirm_destroy != 'DESTROY'
+        run: |
+          echo "Destroy not confirmed"
+          exit 1
+
+      # -----------------------
+      # DESTROY
+      # -----------------------
+      - name: Terraform Init (Destroy)
+        if: inputs.action == 'destroy'
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        run: terraform destroy -auto-approve -var-file=${{ env.TF_VARS_FILE }}
+        working-directory: ${{ env.TF_WORKING_DIR }}
