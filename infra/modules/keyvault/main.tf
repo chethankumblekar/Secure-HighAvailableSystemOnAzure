@@ -1,5 +1,5 @@
 resource "azurerm_key_vault" "this" {
-  name                = "${var.project_name}-${var.environment}-kv"
+  name                = "${var.environment}-kv"
   location            = var.location
   resource_group_name = var.resource_group_name
   tenant_id           = var.tenant_id
