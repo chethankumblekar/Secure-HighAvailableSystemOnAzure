@@ -13,11 +13,6 @@ resource "azurerm_key_vault" "this" {
   tags = var.tags
 }
 
-variable "app_identity_principal_id" {
-  description = "Managed Identity principal ID of App Service"
-  type        = string
-}
-
 resource "azurerm_role_assignment" "app_kv_secrets_reader" {
   scope                = azurerm_key_vault.this.id
   role_definition_name = "Key Vault Secrets User"

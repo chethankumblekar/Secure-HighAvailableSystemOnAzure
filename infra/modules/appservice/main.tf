@@ -27,6 +27,9 @@ resource "azurerm_linux_web_app" "this" {
       docker_image_name = "nginx:latest"
     }
   }
+  app_settings = {
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = var.app_insights_connection_string
+  }
 
   tags = var.tags
 }

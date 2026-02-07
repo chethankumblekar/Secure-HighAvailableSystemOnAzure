@@ -15,6 +15,7 @@ module "app_service" {
   location            = var.location
   resource_group_name = module.resource_group.name
   tags                = var.tags
+  app_insights_connection_string = module.monitoring.app_insights_connection_string
 }
 
 data "azurerm_client_config" "current" {}
@@ -30,4 +31,17 @@ module "keyvault" {
   app_identity_principal_id = module.appservice.identity_principal_id
   tags                    = var.tags
 }
+
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = module.resource_group.name
+  tags                = var.tags
+  
+}
+
+
 
