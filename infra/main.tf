@@ -7,6 +7,17 @@ module "resource_group" {
   tags         = var.tags
 }
 
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = module.resource_group.name
+  tags                = var.tags
+  
+}
+
 module "app_service" {
   source = "./modules/appservice"
 
@@ -28,20 +39,6 @@ module "keyvault" {
   location                = var.location
   resource_group_name     = module.resource_group.name
   tenant_id               = data.azurerm_client_config.current.tenant_id
-  app_identity_principal_id = module.appservice.identity_principal_id
+  app_identity_principal_id = module.app_service.identity_principal_id
   tags                    = var.tags
 }
-
-module "monitoring" {
-  source = "./modules/monitoring"
-
-  project_name        = var.project_name
-  environment         = var.environment
-  location            = var.location
-  resource_group_name = module.resource_group.name
-  tags                = var.tags
-  
-}
-
-
-
