@@ -4,7 +4,7 @@ resource "azurerm_service_plan" "this" {
   location            = var.location
 
   os_type  = "Linux"
-  sku_name = "F1" 
+  sku_name = "B1" 
 
   tags = var.tags
 }
@@ -37,7 +37,9 @@ resource "azurerm_linux_web_app" "this" {
 
 resource "azurerm_linux_web_app_slot" "staging" {
   name           = "staging"
+  count = var.enable_slots ? 1 : 0
   app_service_id = azurerm_linux_web_app.this.id
+
 
   https_only = true
 

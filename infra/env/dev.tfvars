@@ -1,6 +1,7 @@
 project_name = "azure-secure-devops"
 environment  = "dev"
 location     = "Central India"
+enable_slots = false
 
 tags = {
   owner       = "chethan"

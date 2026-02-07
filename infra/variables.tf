@@ -19,4 +19,9 @@ variable "tags" {
   default     = {}
 }
 
+variable "enable_slots" {
+  description = "Whether to enable deployment slots for the web app"
+  type        = bool
+  default     = false
+}
 

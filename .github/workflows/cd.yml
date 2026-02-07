@@ -85,6 +85,14 @@ jobs:
       # -----------------------
       # ROLLBACK (Slot Swap)
       # -----------------------
+      - name: Validate slot availability
+        if: inputs.action == 'rollback'
+        run: |
+          if [ "${{ inputs.environment }}" = "dev" ] && [ "${{ env.ENABLE_SLOTS }}" != "true" ]; then
+            echo "Rollback not supported: deployment slots disabled"
+            exit 1
+          fi
+          
       - name: Rollback - Slot Swap
         if: inputs.action == 'rollback'
         run: |

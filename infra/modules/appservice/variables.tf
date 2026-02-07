@@ -7,3 +7,8 @@ variable "tags"         { type = map(string) }
 variable "app_insights_connection_string" {
   type = string
 }
+
+variable "enable_slots" {
+  type    = bool
+  default = false
+}

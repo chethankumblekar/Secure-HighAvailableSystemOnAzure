@@ -7,3 +7,5 @@ tags = {
   purpose     = "portfolio-dr"
   costcontrol = "enabled"
 }
+
+enable_slots = false
