@@ -21,14 +21,14 @@ resource "azurerm_monitor_metric_alert" "http_5xx" {
   resource_group_name = var.resource_group_name
   scopes              = [azurerm_application_insights.this.id]
 
-  description = "Alert on HTTP 5xx errors"
+  description = "Alert on HTTP 5xx responses"
   severity    = 3
   frequency   = "PT5M"
   window_size = "PT5M"
 
   criteria {
     metric_namespace = "Microsoft.Insights/components"
-    metric_name      = "ServerExceptions"
+    metric_name      = "requests/failed"
     aggregation      = "Total"
     operator         = "GreaterThan"
     threshold        = 0
