@@ -10,3 +10,7 @@ variable "app_identity_principal_id" {
   description = "Managed Identity principal ID of App Service"
   type        = string
 }
+variable "terraform_principal_id" {
+  type        = string
+  description = "Object ID of Terraform execution identity"
+}

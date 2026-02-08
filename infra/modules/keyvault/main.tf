@@ -18,6 +18,12 @@ resource "azurerm_key_vault" "this" {
   tags = var.tags
 }
 
+resource "azurerm_role_assignment" "terraform_kv_admin" {
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = "Key Vault Administrator"
+  principal_id         = var.terraform_principal_id
+}
+
 resource "azurerm_role_assignment" "app_kv_secrets_reader" {
   scope                = azurerm_key_vault.this.id
   role_definition_name = "Key Vault Secrets User"

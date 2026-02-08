@@ -27,12 +27,12 @@ resource "azurerm_monitor_metric_alert" "http_5xx" {
   window_size = "PT5M"
 
   criteria {
-    metric_namespace = "Microsoft.Insights/components"
-    metric_name      = "requests/failed"
-    aggregation      = "Total"
-    operator         = "GreaterThan"
-    threshold        = 0
-  }
+  metric_namespace = "Microsoft.Insights/components"
+  metric_name      = "requests/failed"
+  aggregation      = "Count"
+  operator         = "GreaterThan"
+  threshold        = 0
+}
 
   tags = var.tags
 }
