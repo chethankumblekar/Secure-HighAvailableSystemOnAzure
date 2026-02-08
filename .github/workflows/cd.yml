@@ -67,7 +67,11 @@ jobs:
       # -----------------------
       # Terraform Setup
       # -----------------------
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+          cli_config_credentials_token: ${{ secrets.TF_TOKEN_app_terraform_io }}
 
       # -----------------------
       # DEPLOY
