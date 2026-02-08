@@ -40,6 +40,6 @@ module "keyvault" {
   resource_group_name       = module.resource_group.name
   tenant_id                 = data.azurerm_client_config.current.tenant_id
   terraform_principal_id    = data.azurerm_client_config.current.object_id
-  app_identity_principal_id = module.appservice.identity_principal_id
+  app_identity_principal_id = module.app_service.identity_principal_id
   tags                      = var.tags
 }
