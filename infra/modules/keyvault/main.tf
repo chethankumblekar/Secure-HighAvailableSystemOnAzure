@@ -5,7 +5,7 @@ resource "random_string" "kv_suffix" {
 }
 
 resource "azurerm_key_vault" "this" {
-  name                = "${var.project_name}-${var.environment}-kv-${random_string.kv_suffix.result}"
+  name                = "${var.environment}-kv-${random_string.kv_suffix.result}"
   location            = var.location
   resource_group_name = var.resource_group_name
   tenant_id           = var.tenant_id
