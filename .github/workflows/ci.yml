@@ -139,4 +139,4 @@ jobs:
         run: cosign sign --yes "${{ env.IMAGE_NAME }}:${{ needs.build-test.outputs.image_tag }}"
 
       - name: Attest SBOM (keyless, via GitHub OIDC)
-        run: cosign attest --yes --predicate /tmp/sbom.spdx.json --type spdx "${{ env.IMAGE_NAME }}:${{ needs.build-test.outputs.image_tag }}"
+        run: cosign attest --yes --predicate /tmp/sbom.spdx.json --type spdxjson "${{ env.IMAGE_NAME }}:${{ needs.build-test.outputs.image_tag }}"
