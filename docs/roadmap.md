@@ -9,7 +9,7 @@ across sessions, not any ephemeral chat history.
 | 0 — Plan | ADRs, architecture doc, repo scaffolded | ✅ Done | `docs/adr/0001`, `docs/adr/0002`, `docs/architecture.md`, full target tree scaffolded |
 | 1 — Landing zone | Terraform modules: network, AKS, Key Vault, monitoring, policy, remote state | 🚧 In progress | `infra/terraform/azure` wired; not yet `terraform apply`'d against real Azure |
 | 1b — AWS reference impl | Terraform modules: VPC, EKS, IAM/IRSA, ALB | ⬜ Not started | Proves portability; same Helm/ArgoCD definitions target both clouds |
-| 2 — Reference workload | Sample multi-tenant service, containerized, Helm chart | ⬜ Not started | `workloads/sample-service` |
+| 2 — Reference workload | Sample multi-tenant service, containerized, Helm chart | ✅ Done | `workloads/sample-service` — Go notes API, distroless image (~13MB), Helm chart verified end-to-end on local `kind` |
 | 3 — CI/CD + GitOps | GitHub Actions (SAST/scan/SBOM/sign) → ArgoCD auto-deploy | ⬜ Not started | `ci.yml` still a stub; `platform/argocd` empty |
 | 4 — Observability | OTel + Prometheus + Grafana, SLOs, alerting, runbooks | ⬜ Not started | `observability/` |
 | 5 — Security hardening | Workload Identity (done for AKS↔KV), NetworkPolicies, WAF | 🚧 Partial | AKS workload identity + Key Vault RBAC done in Phase 1; rest is `security/` |

@@ -1,0 +1,55 @@
+image:
+  repository: tenantforge/sample-service
+  tag: dev
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+serviceAccount:
+  create: true
+  name: ""
+  # Set to the AKS workload identity client ID once Backstage/onboarding
+  # (Phase 7) wires a real tenant identity through; empty means no
+  # federation annotation is added and the pod runs with no cloud identity.
+  workloadIdentityClientId: ""
+
+ingress:
+  enabled: false
+  className: ""
+  host: sample-service.local
+  path: /
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+podSecurityContext:
+  runAsNonRoot: true
+  # distroless's nonroot user is name-based in image metadata; kubelet can't
+  # verify runAsNonRoot without a numeric UID, so pin it explicitly (65532
+  # is distroless's standard nonroot UID).
+  runAsUser: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
