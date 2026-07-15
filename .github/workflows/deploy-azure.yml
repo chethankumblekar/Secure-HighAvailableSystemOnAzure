@@ -44,13 +44,17 @@ jobs:
       - name: Resolve environment variables
         run: |
           if [ "${{ inputs.environment }}" = "dev" ]; then
-            echo "TF_VARS_FILE=envs/dev/dev.tfvars" >> $GITHUB_ENV
-            echo "RG_NAME=tenantforge-dev-rg" >> $GITHUB_ENV
-            echo "AKS_CLUSTER_NAME=tenantforge-dev-aks" >> $GITHUB_ENV
+            {
+              echo "TF_VARS_FILE=envs/dev/dev.tfvars"
+              echo "RG_NAME=tenantforge-dev-rg"
+              echo "AKS_CLUSTER_NAME=tenantforge-dev-aks"
+            } >> "$GITHUB_ENV"
           elif [ "${{ inputs.environment }}" = "dr" ]; then
-            echo "TF_VARS_FILE=envs/dr/dr.tfvars" >> $GITHUB_ENV
-            echo "RG_NAME=tenantforge-dr-rg" >> $GITHUB_ENV
-            echo "AKS_CLUSTER_NAME=tenantforge-dr-aks" >> $GITHUB_ENV
+            {
+              echo "TF_VARS_FILE=envs/dr/dr.tfvars"
+              echo "RG_NAME=tenantforge-dr-rg"
+              echo "AKS_CLUSTER_NAME=tenantforge-dr-aks"
+            } >> "$GITHUB_ENV"
           fi
 
       # -----------------------

@@ -1,0 +1,35 @@
+# Azure (Tier 3, real AKS) overlay — not usable yet. `destination.server`
+# needs the real AKS API server URL, which only exists once Phase 1's
+# `terraform apply` has actually run (see docs/roadmap.md) and the cluster
+# is registered with ArgoCD (`argocd cluster add <aks-context>`). Left here
+# as the declared intent for that phase rather than built blind.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chethankumblekar/Secure-HighAvailableSystemOnAzure.git
+    targetRevision: HEAD
+    path: workloads/sample-service/helm
+    helm:
+      parameters:
+        - name: image.repository
+          value: ghcr.io/chethankumblekar/tenantforge-sample-service
+        - name: image.tag
+          value: latest
+        - name: image.pullPolicy
+          value: Always
+  destination:
+    # TODO(Phase 1 apply): replace with the real AKS cluster's registered
+    # ArgoCD destination name/server once it exists.
+    server: PLACEHOLDER_AKS_CLUSTER_NOT_YET_DEPLOYED
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,24 +1,142 @@
 name: CI
 
-# Placeholder — Phase 3 of the roadmap (see docs/roadmap.md) replaces this
-# with: build -> test -> CodeQL SAST -> Trivy image scan -> Syft SBOM ->
-# cosign sign -> push to GHCR, all on GitHub's free tier (public repo).
+# On a PR: build, vet, test, and build the container image — never pushed.
+# On merge to main: also scan the image (Trivy), generate an SBOM (Syft),
+# push to GHCR, and sign the image + attest the SBOM with cosign (keyless,
+# via GitHub's OIDC identity — no signing key to manage).
+#
+# GHCR over ACR is a deliberate cost-tier choice — see docs/adr/0003.
 
 on:
-
   pull_request:
   push:
     branches: [main]
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/tenantforge-sample-service
+  WORKING_DIR: workloads/sample-service
 
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    outputs:
+      image_tag: ${{ steps.tag.outputs.value }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build (sample)
-        run: echo "Build successful"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: false # no go.sum — zero external dependencies, nothing to cache
 
-      - name: Tests (sample)
-        run: echo "Tests passed"
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./... -v
+
+      - name: Build binary
+        run: CGO_ENABLED=0 go build -o /dev/null ./cmd/server
+
+      - name: Resolve image tag
+        id: tag
+        run: echo "value=sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Build container image
+        run: docker build -t "${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}" .
+
+      - name: Save image for downstream jobs
+        run: docker save "${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}" -o /tmp/image.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-tar
+          path: /tmp/image.tar
+          retention-days: 1
+
+  scan:
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: image-tar
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/image.tar
+
+      - name: Trivy scan (report only — see docs/adr/0003 and security/pipeline-configs)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "${{ env.IMAGE_NAME }}:${{ needs.build-test.outputs.image_tag }}"
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "0"
+
+      - uses: github/codeql-action/upload-sarif@v4.37.0
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: "${{ env.IMAGE_NAME }}:${{ needs.build-test.outputs.image_tag }}"
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 90
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-test, scan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # required for cosign keyless signing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: image-tar
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/image.tar
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: /tmp
+
+      - uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push image
+        run: docker push "${{ env.IMAGE_NAME }}:${{ needs.build-test.outputs.image_tag }}"
+
+      - name: Also tag and push :latest
+        run: |
+          docker tag "${{ env.IMAGE_NAME }}:${{ needs.build-test.outputs.image_tag }}" "${{ env.IMAGE_NAME }}:latest"
+          docker push "${{ env.IMAGE_NAME }}:latest"
+
+      - name: Sign image (keyless, via GitHub OIDC)
+        run: cosign sign --yes "${{ env.IMAGE_NAME }}:${{ needs.build-test.outputs.image_tag }}"
+
+      - name: Attest SBOM (keyless, via GitHub OIDC)
+        run: cosign attest --yes --predicate /tmp/sbom.spdx.json --type spdx "${{ env.IMAGE_NAME }}:${{ needs.build-test.outputs.image_tag }}"

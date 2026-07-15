@@ -1,0 +1,33 @@
+# Local (Tier 1, kind) overlay: pulls the real image CI publishes to GHCR
+# rather than a kind-loaded local build — this is what actually proves the
+# GitOps loop (git push -> CI publishes a signed image -> ArgoCD notices the
+# new Application manifest / syncs -> a real registry pull onto the
+# cluster), not just "helm install" from a local path.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chethankumblekar/Secure-HighAvailableSystemOnAzure.git
+    targetRevision: HEAD
+    path: workloads/sample-service/helm
+    helm:
+      parameters:
+        - name: image.repository
+          value: ghcr.io/chethankumblekar/tenantforge-sample-service
+        - name: image.tag
+          value: latest
+        - name: image.pullPolicy
+          value: Always
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
