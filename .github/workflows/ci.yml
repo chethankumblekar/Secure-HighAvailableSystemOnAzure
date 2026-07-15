@@ -1,5 +1,9 @@
 name: CI
 
+# Placeholder — Phase 3 of the roadmap (see docs/roadmap.md) replaces this
+# with: build -> test -> CodeQL SAST -> Trivy image scan -> Syft SBOM ->
+# cosign sign -> push to GHCR, all on GitHub's free tier (public repo).
+
 on:
 
   pull_request:
@@ -17,4 +21,4 @@ jobs:
         run: echo "Build successful"
 
       - name: Tests (sample)
-        run: echo "Tests passed"    
+        run: echo "Tests passed"

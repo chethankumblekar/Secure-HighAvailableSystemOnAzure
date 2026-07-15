@@ -1,0 +1,112 @@
+name: Deploy - Azure Landing Zone (AKS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - dr
+
+      action:
+        description: "Operation"
+        required: true
+        default: "deploy"
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+      confirm_destroy:
+        description: "Type DESTROY to confirm destroy"
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_WORKING_DIR: infra/terraform/azure
+
+jobs:
+  platform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # -----------------------
+      # Resolve Environment
+      # -----------------------
+      - name: Resolve environment variables
+        run: |
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            echo "TF_VARS_FILE=envs/dev/dev.tfvars" >> $GITHUB_ENV
+            echo "RG_NAME=tenantforge-dev-rg" >> $GITHUB_ENV
+            echo "AKS_CLUSTER_NAME=tenantforge-dev-aks" >> $GITHUB_ENV
+          elif [ "${{ inputs.environment }}" = "dr" ]; then
+            echo "TF_VARS_FILE=envs/dr/dr.tfvars" >> $GITHUB_ENV
+            echo "RG_NAME=tenantforge-dr-rg" >> $GITHUB_ENV
+            echo "AKS_CLUSTER_NAME=tenantforge-dr-aks" >> $GITHUB_ENV
+          fi
+
+      # -----------------------
+      # Azure Login (OIDC)
+      # -----------------------
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # -----------------------
+      # Terraform Setup
+      # -----------------------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+          cli_config_credentials_token: ${{ secrets.TF_TOKEN_app_terraform_io }}
+
+      # -----------------------
+      # DEPLOY
+      # -----------------------
+      - name: Terraform Init
+        if: inputs.action == 'deploy'
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Apply
+        if: inputs.action == 'deploy'
+        run: terraform apply -auto-approve -var-file=${{ env.TF_VARS_FILE }}
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      # NOTE: rollback used to be an App Service slot swap. Now that compute is
+      # AKS, rollback is workload-level (Helm release rollback / Argo Rollouts),
+      # not a landing-zone concern — lands in Phase 3 alongside GitOps.
+
+      # -----------------------
+      # DESTROY SAFETY CHECK
+      # -----------------------
+      - name: Validate Destroy Confirmation
+        if: inputs.action == 'destroy' && inputs.confirm_destroy != 'DESTROY'
+        run: |
+          echo "Destroy not confirmed"
+          exit 1
+
+      # -----------------------
+      # DESTROY
+      # -----------------------
+      - name: Terraform Init (Destroy)
+        if: inputs.action == 'destroy'
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        run: terraform destroy -auto-approve -var-file=${{ env.TF_VARS_FILE }}
+        working-directory: ${{ env.TF_WORKING_DIR }}

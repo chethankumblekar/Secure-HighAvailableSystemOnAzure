@@ -1,0 +1,15 @@
+name: Deploy - AWS Reference Implementation (EKS)
+
+# Placeholder — Phase 1b of the roadmap (see docs/roadmap.md).
+# Proves portability: the same Helm charts and ArgoCD app definitions from
+# infra/terraform/aws will deploy to EKS the way infra/terraform/azure
+# deploys to AKS. No trigger configured yet — nothing here to run.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "AWS reference implementation not built yet — see docs/roadmap.md Phase 1b"

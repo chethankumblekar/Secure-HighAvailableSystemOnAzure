@@ -6,7 +6,10 @@ crash.log
 
 # Terraform plan files
 *.tfplan
-*.terraform.*
+
+# Keep .terraform.lock.hcl (provider lock file) tracked; ignore other
+# terraform-generated dotfiles like .terraform.tfstate.lock.info
+*.terraform.tfstate.lock.info
 
 # OS
 .DS_Store
