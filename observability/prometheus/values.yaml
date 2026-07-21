@@ -1,0 +1,52 @@
+# Helm values for prometheus-community/kube-prometheus-stack, sized for the
+# local Tier-1 (kind) cluster this project runs its demos on. See
+# observability/prometheus/README.md for the install command.
+
+# kind's control-plane runs as static pods with no matching Kubernetes
+# Service the way a kubeadm/managed cluster exposes etcd, the scheduler and
+# the controller-manager — these ServiceMonitors never find a scrape target
+# on kind and just sit permanently unhealthy. Disabled here; re-enable for a
+# real AKS/EKS install (Phase 1/1b), where those endpoints exist.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    # This is a single-tenant demo cluster, not a shared one where the
+    # chart's default release-label isolation between ServiceMonitors
+    # matters — pick up anything in the cluster.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    retention: 6h
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+
+grafana:
+  adminPassword: admin # local kind demo only — never do this against a real cluster
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+      label: grafana_dashboard
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi

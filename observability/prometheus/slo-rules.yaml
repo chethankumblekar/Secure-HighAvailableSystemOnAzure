@@ -1,0 +1,55 @@
+# SLOs for sample-service (see docs/well-architected-review.md):
+#   availability — 5xx ratio stays under 5% over any 5m window
+#   latency      — p95 request duration stays under 500ms over any 5m window
+# Each alert links a runbook_url into docs/runbooks/ — the response for a
+# firing alert should never start from a blank page.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sample-service-slo
+  namespace: observability
+spec:
+  groups:
+    - name: sample-service.slo
+      rules:
+        - record: sample_service:http_requests:rate5m
+          expr: sum(rate(http_requests_total{job="sample-service"}[5m])) by (route)
+
+        - record: sample_service:http_errors:rate5m
+          expr: sum(rate(http_requests_total{job="sample-service",status=~"5.."}[5m])) by (route)
+
+        - record: sample_service:error_ratio:rate5m
+          expr: |
+            sum(rate(http_requests_total{job="sample-service",status=~"5.."}[5m])) by (route)
+            /
+            sum(rate(http_requests_total{job="sample-service"}[5m])) by (route)
+
+        - alert: SampleServiceHighErrorRate
+          expr: sample_service:error_ratio:rate5m > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "sample-service error ratio above 5% on {{ $labels.route }}"
+            description: "{{ $labels.route }} has a 5xx ratio of {{ $value | humanizePercentage }} over the last 5m, above the 5% SLO threshold."
+            runbook_url: "https://github.com/chethankumblekar/tenantforge/blob/main/docs/runbooks/high-error-rate.md"
+
+        - alert: SampleServiceHighLatency
+          expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="sample-service"}[5m])) by (le, route)) > 0.5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "sample-service p95 latency above 500ms on {{ $labels.route }}"
+            description: "p95 request duration for {{ $labels.route }} has been above the 500ms SLO threshold for 10m."
+            runbook_url: "https://github.com/chethankumblekar/tenantforge/blob/main/docs/runbooks/high-latency.md"
+
+        - alert: SampleServiceDown
+          expr: up{job="sample-service"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "sample-service target down"
+            description: "Prometheus has not been able to scrape sample-service (via the OTel collector) for 5m."
+            runbook_url: "https://github.com/chethankumblekar/tenantforge/blob/main/docs/runbooks/service-down.md"

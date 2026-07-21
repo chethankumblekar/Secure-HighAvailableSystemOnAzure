@@ -1,8 +1,19 @@
 # Runbooks
 
-Placeholder — Phase 9 of [the roadmap](../roadmap.md).
+## Alert runbooks (Phase 4)
 
-Will hold: a DR drill log (what broke during a real failover attempt, what
-we'd change), an incident postmortem for a simulated production issue, and
-day-2 operational runbooks (rotate a Key Vault secret, roll back a bad Helm
-release, respond to an SLO burn-rate alert).
+Every alert in
+[`observability/prometheus/slo-rules.yaml`](../../observability/prometheus/slo-rules.yaml)
+carries a `runbook_url` annotation pointing here:
+
+| Alert | Runbook |
+|---|---|
+| `SampleServiceHighErrorRate` | [high-error-rate.md](high-error-rate.md) |
+| `SampleServiceHighLatency` | [high-latency.md](high-latency.md) |
+| `SampleServiceDown` | [service-down.md](service-down.md) |
+
+## Not yet written — Phase 9 of [the roadmap](../roadmap.md)
+
+A DR drill log (what broke during a real failover attempt, what we'd
+change), an incident postmortem for a simulated production issue, and a
+Key-Vault-secret-rotation runbook.

@@ -1,0 +1,23 @@
+# honorLabels is the detail that makes this work: the OTel collector's
+# prometheus exporter re-emits sample-service's own job="sample-service"/
+# instance=... labels (round-tripped from its prometheus *receiver*'s scrape
+# of sample-service). Without honorLabels, Prometheus's default relabeling
+# would overwrite those with job="otel-collector"/instance=<pod-ip:8889> —
+# the collector's own identity, not the workload's — and every PromQL query
+# in slo-rules.yaml and the Grafana dashboard that filters on
+# job="sample-service" would silently match nothing.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [observability]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: otel-collector
+  endpoints:
+    - port: metrics
+      interval: 15s
+      honorLabels: true

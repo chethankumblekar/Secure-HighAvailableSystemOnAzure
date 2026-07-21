@@ -1,0 +1,46 @@
+# Pull-based metrics pipeline: sample-service (internal/metrics, hand-rolled
+# Prometheus format — see docs/adr/0004) is scraped here, not pushed to.
+# This collector is the one place all workload telemetry egress is
+# vendor-neutral — swapping the downstream from Prometheus to something else
+# later touches this config, not the workload.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+data:
+  config.yaml: |
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: sample-service
+              scrape_interval: 15s
+              static_configs:
+                - targets: ["sample-service.default.svc.cluster.local:80"]
+
+    processors:
+      batch: {}
+      resource:
+        attributes:
+          - key: deployment.environment
+            value: local
+            action: upsert
+
+    exporters:
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+      debug:
+        verbosity: basic
+
+    extensions:
+      health_check:
+        endpoint: "0.0.0.0:13133"
+
+    service:
+      extensions: [health_check]
+      pipelines:
+        metrics:
+          receivers: [prometheus]
+          processors: [batch, resource]
+          exporters: [prometheus, debug]

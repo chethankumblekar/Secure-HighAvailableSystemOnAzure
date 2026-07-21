@@ -1,0 +1,82 @@
+# kube-prometheus-stack's Grafana sidecar (values.yaml: grafana.sidecar.
+# dashboards, label "grafana_dashboard") watches every namespace
+# (searchNamespace: ALL) for ConfigMaps carrying this label and imports
+# their contents as dashboards automatically — no manual "upload JSON in
+# the UI" step, and it stays in sync with git like everything else here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample-service-dashboard
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  sample-service.json: |
+    {
+      "title": "sample-service SLOs",
+      "uid": "sample-service-slo",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "timezone": "utc",
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "15s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Request rate by route",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{job=\"sample-service\"}[5m])) by (route)",
+              "legendFormat": "{{route}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Error ratio (5xx) — SLO threshold 5%",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "min": 0 }, "overrides": [] },
+          "targets": [
+            {
+              "expr": "sample_service:error_ratio:rate5m",
+              "legendFormat": "{{route}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "p95 latency by route — SLO threshold 500ms",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"sample-service\"}[5m])) by (le, route))",
+              "legendFormat": "{{route}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "sample-service up",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+              ]
+            },
+            "overrides": []
+          },
+          "targets": [
+            { "expr": "up{job=\"sample-service\"}", "legendFormat": "{{instance}}" }
+          ]
+        }
+      ]
+    }

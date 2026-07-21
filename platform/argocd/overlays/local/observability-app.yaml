@@ -1,0 +1,35 @@
+# Recursively applies every plain-YAML manifest under observability/ —
+# the OTel collector, the sample-service ServiceMonitor + SLO
+# PrometheusRule, and the Grafana dashboard ConfigMap. README.md files in
+# those directories are skipped automatically (ArgoCD's directory source
+# only parses *.yaml/*.yml/*.json).
+#
+# sync-wave "1" is a soft ordering hint against kube-prometheus-stack-app.yaml
+# (wave "0" by default) for when the root app-of-apps creates both — it does
+# NOT guarantee the ServiceMonitor/PrometheusRule CRDs already exist by the
+# time this Application's own sync runs. If they don't yet, this app's sync
+# fails until kube-prometheus-stack's CRDs land, then self-heals on retry.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chethankumblekar/Secure-HighAvailableSystemOnAzure.git
+    targetRevision: HEAD
+    path: observability
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

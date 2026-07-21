@@ -9,7 +9,7 @@ each phase lands — this is a living document, not written once at the end.
 | Reliability | `dev`/`dr` environments on the same modules, different regions | — | Landing zone only; PodDisruptionBudgets/health probes land with the reference workload (Phase 2) |
 | Security | Key Vault (RBAC), AKS workload identity + OIDC issuer, resource-group policy assignment | — | NetworkPolicies, WAF, SAST/scan/SBOM/signing land in Phase 3/5 |
 | Cost Optimization | Free AKS control-plane SKU, single burstable node, apply-demo-destroy workflow | — | Autoscaling, spot node pool, orphan-cleanup bot, budget alerts are Phase 6 |
-| Operational Excellence | GitOps-ready module layout, ADRs (`docs/adr/`) | — | Runbooks (`docs/runbooks/`), blameless postmortem template, DR drill log are Phase 9 |
-| Performance Efficiency | — | — | HPA/KEDA, Front Door caching, k6 load testing are Phase 2/4/9 |
+| Operational Excellence | GitOps-ready module layout, ADRs (`docs/adr/`), per-alert runbooks (`docs/runbooks/`) | — | Blameless postmortem template, DR drill log are Phase 9 |
+| Performance Efficiency | SLO-based latency alerting (p95 < 500ms) via `observability/prometheus/slo-rules.yaml` | — | HPA/KEDA, Front Door caching, k6 load testing are Phase 2/9 |
 
 See [docs/roadmap.md](roadmap.md) for the phase-by-phase plan.

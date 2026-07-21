@@ -11,10 +11,13 @@ kubectl -n argocd rollout status deploy/argocd-server
 kubectl apply -f app-of-apps/root-app.yaml
 ```
 
-That one `kubectl apply` is the only manual step — ArgoCD then reads
-`overlays/local/sample-service-app.yaml` from git itself and syncs
-`workloads/sample-service/helm`, pulling the real image CI publishes to
-GHCR (not a locally-built one), self-healing if anything drifts.
+That one `kubectl apply` is the only manual step — ArgoCD then reads every
+`overlays/local/*-app.yaml` from git itself: `sample-service-app.yaml`
+syncs `workloads/sample-service/helm`, pulling the real image CI publishes
+to GHCR (not a locally-built one); `kube-prometheus-stack-app.yaml` and
+`observability-app.yaml` bring up the Phase 4 observability stack (see
+[`observability/`](../../observability)). All of them self-heal if
+anything drifts.
 
 Port-forward the UI to watch it sync: `kubectl -n argocd port-forward
 svc/argocd-server 8080:443`. Get the initial admin password:

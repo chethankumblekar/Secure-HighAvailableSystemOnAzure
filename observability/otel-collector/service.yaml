@@ -1,0 +1,16 @@
+# Labeled so observability/prometheus/servicemonitor.yaml's selector can
+# find this Service without hardcoding a namespace assumption elsewhere.
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: otel-collector
+spec:
+  selector:
+    app.kubernetes.io/name: otel-collector
+  ports:
+    - name: metrics
+      port: 8889
+      targetPort: metrics

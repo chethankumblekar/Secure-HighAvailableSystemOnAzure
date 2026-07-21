@@ -1,0 +1,30 @@
+# Multi-source Application: source 0 is the upstream Helm chart, source 1
+# is this git repo (aliased "values") supplying observability/prometheus/
+# values.yaml as $values — lets a third-party chart take repo-tracked
+# values without forking or templating the chart ourselves.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: "87.18.0"
+      helm:
+        valueFiles:
+          - $values/observability/prometheus/values.yaml
+    - repoURL: https://github.com/chethankumblekar/Secure-HighAvailableSystemOnAzure.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

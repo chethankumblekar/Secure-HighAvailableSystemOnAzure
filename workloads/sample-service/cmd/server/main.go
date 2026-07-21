@@ -8,8 +8,10 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/chethankumblekar/tenantforge/workloads/sample-service/internal/metrics"
 	"github.com/chethankumblekar/tenantforge/workloads/sample-service/internal/notes"
 )
 
@@ -23,7 +25,8 @@ func main() {
 	}
 
 	store := notes.NewStore()
-	mux := newMux(store)
+	reg := metrics.NewRegistry()
+	mux := newMux(store, reg)
 
 	srv := &http.Server{
 		Addr:         addr,
@@ -40,18 +43,44 @@ func main() {
 	}
 }
 
-func newMux(store *notes.Store) *http.ServeMux {
+func newMux(store *notes.Store, reg *metrics.Registry) *http.ServeMux {
 	mux := http.NewServeMux()
 
+	// Probes are deliberately not instrumented — they're kubelet noise, not
+	// traffic the SLOs care about.
 	mux.HandleFunc("GET /healthz", handleHealthz)
 	mux.HandleFunc("GET /readyz", handleReadyz)
-	mux.HandleFunc("GET /metrics", handleMetrics)
+	mux.HandleFunc("GET /metrics", handleMetrics(reg))
 
-	mux.HandleFunc("GET /tenants/{tenantID}/notes", handleListNotes(store))
-	mux.HandleFunc("POST /tenants/{tenantID}/notes", handleCreateNote(store))
-	mux.HandleFunc("GET /tenants/{tenantID}/notes/{id}", handleGetNote(store))
+	route(mux, reg, "GET", "/tenants/{tenantID}/notes", handleListNotes(store))
+	route(mux, reg, "POST", "/tenants/{tenantID}/notes", handleCreateNote(store))
+	route(mux, reg, "GET", "/tenants/{tenantID}/notes/{id}", handleGetNote(store))
 
 	return mux
+}
+
+// route registers h under "METHOD pattern" and wraps it with request-count
+// and latency instrumentation, labeled by the route pattern rather than the
+// raw request path so tenant/note IDs never become a metric label value.
+func route(mux *http.ServeMux, reg *metrics.Registry, method, pattern string, h http.HandlerFunc) {
+	mux.HandleFunc(method+" "+pattern, func(w http.ResponseWriter, r *http.Request) {
+		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		start := time.Now()
+		h(sw, r)
+		reg.Observe(method, pattern, strconv.Itoa(sw.status), time.Since(start))
+	})
+}
+
+// statusWriter captures the status code a handler writes, since
+// http.ResponseWriter doesn't expose it after the fact.
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
 }
 
 // handleHealthz answers "is the process alive" — used for the liveness probe.
@@ -69,13 +98,15 @@ func handleReadyz(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ready"))
 }
 
-// handleMetrics emits a minimal Prometheus-format counter without pulling in
-// the full client_golang dependency — good enough to prove the observability
-// pipeline (Phase 4) can scrape this service; will be replaced with real
-// request/latency histograms once OTel lands.
-func handleMetrics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-	_, _ = w.Write([]byte("sample_service_up 1\n"))
+// handleMetrics serves real request-count and latency metrics in Prometheus
+// exposition format — see internal/metrics and docs/adr/0004 for why this is
+// hand-rolled rather than the OTel SDK. The OTel collector
+// (observability/otel-collector) scrapes this endpoint.
+func handleMetrics(reg *metrics.Registry) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+		reg.RenderText(w)
+	}
 }
 
 func handleListNotes(store *notes.Store) http.HandlerFunc {

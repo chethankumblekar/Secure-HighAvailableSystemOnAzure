@@ -11,7 +11,7 @@ platform is the star, not this service.
 |---|---|---|
 | GET | `/healthz` | Liveness probe |
 | GET | `/readyz` | Readiness probe |
-| GET | `/metrics` | Minimal Prometheus-format metrics |
+| GET | `/metrics` | Prometheus-format request count + latency histogram, by method/route/status (`internal/metrics`, [ADR-0004](../../docs/adr/0004-stdlib-metrics-not-otel-sdk.md)) |
 | GET | `/tenants/{tenantID}/notes` | List a tenant's notes |
 | POST | `/tenants/{tenantID}/notes` | Create a note (`{"text": "..."}`) |
 | GET | `/tenants/{tenantID}/notes/{id}` | Get one note |
@@ -64,3 +64,7 @@ Tear down: `kind delete cluster --name tenantforge`.
   (`ingress.enabled` / `autoscaling.enabled`) — no Front Door/WAF or KEDA
   yet to make them meaningful.
 - Not in `ci.yml` or `platform/argocd` yet — those are Phase 3.
+
+`/metrics` is scraped by the OTel collector (`observability/otel-collector`)
+as of Phase 4 — see that directory's README for the full pipeline into
+Prometheus/Grafana/alerting.
