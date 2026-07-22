@@ -1,0 +1,13 @@
+# Cluster-enforced version of the podSecurityContext.runAsNonRoot already
+# set in workloads/sample-service/helm/values.yaml — this constraint means
+# a values.yaml regression gets rejected at admission, not just trusted.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequireNonRoot
+metadata:
+  name: require-non-root-default-namespace
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["default"]

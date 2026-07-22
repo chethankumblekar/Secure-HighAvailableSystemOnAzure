@@ -32,6 +32,15 @@ ingress:
   host: sample-service.local
   path: /
 
+networkPolicy:
+  enabled: true
+  # Where the OTel collector that scrapes this service's /metrics lives —
+  # see observability/otel-collector. Ingress from here is allowed on the
+  # service port; nothing else outside this namespace is.
+  metricsScraperNamespace: observability
+  metricsScraperPodSelector:
+    app.kubernetes.io/name: otel-collector
+
 autoscaling:
   enabled: false
   minReplicas: 1

@@ -1,0 +1,18 @@
+# "tenantforge/" covers local kind dev builds (docker build -t
+# tenantforge/sample-service:dev, per workloads/sample-service/README.md);
+# "ghcr.io/chethankumblekar/" covers the real CI-published, cosign-signed
+# image (ci.yml). Nothing else should be running in the tenant namespace.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sAllowedRepos
+metadata:
+  name: sample-service-allowed-registries
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["default"]
+  parameters:
+    repos:
+      - "ghcr.io/chethankumblekar/"
+      - "tenantforge/"

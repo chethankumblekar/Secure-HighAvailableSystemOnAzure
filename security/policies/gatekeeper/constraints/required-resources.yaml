@@ -1,0 +1,18 @@
+# Scoped to "default" (the tenant workload namespace) deliberately — not
+# cluster-wide. The observability stack in this repo is a third-party Helm
+# chart (kube-prometheus-stack) we don't control the pod specs of; policies
+# here apply to what a tenant deploys, not to platform-managed
+# infrastructure.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredResources
+metadata:
+  name: require-resource-requests-limits
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["default"]
+  parameters:
+    requests: ["cpu", "memory"]
+    limits: ["cpu", "memory"]
