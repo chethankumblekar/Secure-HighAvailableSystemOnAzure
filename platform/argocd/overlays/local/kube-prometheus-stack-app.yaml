@@ -2,6 +2,13 @@
 # is this git repo (aliased "values") supplying observability/prometheus/
 # values.yaml as $values — lets a third-party chart take repo-tracked
 # values without forking or templating the chart ourselves.
+#
+# ServerSideApply is required, not optional: this chart's CRDs
+# (prometheuses.monitoring.coreos.com etc.) exceed the 262144-byte limit on
+# the kubectl.kubernetes.io/last-applied-configuration annotation that
+# client-side apply writes — without it, every sync reports these CRDs
+# permanently OutOfSync even immediately after a clean apply. Confirmed by
+# reproducing it locally on kind and clearing it with this flag.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -28,3 +35,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
