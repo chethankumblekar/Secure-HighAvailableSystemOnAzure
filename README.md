@@ -25,13 +25,14 @@ each mapped explicitly to Microsoft's Well-Architected Framework pillars in
 ## Status
 
 The AWS reference implementation, the containerized reference workload,
-the CI/CD supply-chain pipeline, ArgoCD GitOps, and the observability
-stack (metrics, SLO alerting, dashboards, runbooks) are built and verified
-against real infrastructure. The primary Azure landing zone is wired in
-Terraform but not yet applied. See [docs/roadmap.md](docs/roadmap.md) for
-exact phase-by-phase status and verification notes, and
-[ADR-0002](docs/adr/0002-appservice-to-aks-pivot.md) for the most recent
-architectural decision (App Service → AKS).
+the CI/CD supply-chain pipeline, ArgoCD GitOps, the observability stack
+(metrics, SLO alerting, dashboards, runbooks), tenant NetworkPolicy +
+OPA/Gatekeeper admission policy, and the Backstage self-service onboarding
+template are built and verified against real infrastructure. The primary
+Azure landing zone is wired in Terraform but not yet applied. See
+[docs/roadmap.md](docs/roadmap.md) for exact phase-by-phase status and
+verification notes, and [ADR-0002](docs/adr/0002-appservice-to-aks-pivot.md)
+for the most recent architectural decision (App Service → AKS).
 
 ## Repo layout
 
@@ -39,10 +40,10 @@ architectural decision (App Service → AKS).
 docs/                    architecture, ADRs, roadmap, runbooks
 infra/terraform/azure/   primary landing zone (Terraform modules + envs)
 infra/terraform/aws/     portable reference implementation, applied and verified
-platform/                Backstage golden paths, ArgoCD app-of-apps
+platform/                Backstage golden paths (built), ArgoCD app-of-apps
 workloads/               the reference service
 observability/           OTel collector, Prometheus SLOs, Grafana dashboards
-security/                OPA policies, pipeline security configs
+security/                NetworkPolicy, OPA/Gatekeeper admission policy
 finops/                  cost dashboards, budget alerts, orphan-cleanup bot
 ai-ops-assistant/        stretch-goal alert-triage assistant
 .github/workflows/       CI + per-cloud deploy workflows
