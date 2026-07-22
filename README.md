@@ -1,5 +1,10 @@
 # TenantForge
 
+[![CI](https://github.com/chethankumblekar/tenantforge/actions/workflows/ci.yml/badge.svg)](https://github.com/chethankumblekar/tenantforge/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/chethankumblekar/tenantforge/actions/workflows/codeql.yml/badge.svg)](https://github.com/chethankumblekar/tenantforge/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+
 A production-grade, well-architected multi-tenant platform on Azure, with a
 portable AWS reference implementation proving the same modules aren't
 locked to one cloud. See [docs/architecture.md](docs/architecture.md) for
@@ -67,3 +72,14 @@ terraform plan -var-file=envs/dev/dev.tfvars
 `terraform apply` is deliberately not run casually — it costs real money.
 Set an Azure budget + spend alert first (see
 [finops/budget-alerts](finops/budget-alerts/README.md), not yet automated).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, ADR
+process, and code conventions. This project follows the
+[Contributor Covenant](CODE_OF_CONDUCT.md). Found a security issue? See
+[SECURITY.md](SECURITY.md) rather than opening a public issue.
+
+## License
+
+[MIT](LICENSE)

@@ -1,0 +1,46 @@
+name: Bug report
+description: Something in the platform, workload, or pipeline isn't working as documented
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - infra/terraform/azure
+        - infra/terraform/aws
+        - workloads/sample-service
+        - platform/argocd
+        - platform/backstage
+        - observability
+        - security/policies
+        - finops
+        - ci.yml / CI pipeline
+        - docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Commands run, cluster/cloud target (local kind, AWS, Azure), relevant versions
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or output
+      render: shell

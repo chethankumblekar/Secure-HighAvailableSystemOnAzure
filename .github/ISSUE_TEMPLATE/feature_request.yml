@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose new functionality or a change in direction
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Check [docs/roadmap.md](../../docs/roadmap.md) first — this may
+        already be planned for a later phase, or deliberately out of scope
+        (see `REQUIREMENTS.md`'s non-goals).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
