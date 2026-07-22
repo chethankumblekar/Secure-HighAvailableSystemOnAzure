@@ -1,0 +1,25 @@
+---
+# The System every tenant-service-golden-path Component registers under.
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: tenantforge
+  description: TenantForge — services onboarded through the tenant-service golden path
+spec:
+  owner: guests
+---
+# The reference workload itself, so it shows up in the catalog alongside
+# anything scaffolded through the golden path.
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sample-service
+  description: TenantForge's reference workload — see workloads/sample-service
+  links:
+    - url: https://github.com/chethankumblekar/tenantforge/tree/main/workloads/sample-service
+      title: Source
+spec:
+  type: service
+  lifecycle: production
+  owner: guests
+  system: tenantforge

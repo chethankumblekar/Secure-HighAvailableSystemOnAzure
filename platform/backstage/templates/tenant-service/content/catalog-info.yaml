@@ -1,0 +1,10 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name | dump }}
+  description: ${{ values.description | dump }}
+spec:
+  type: service
+  owner: ${{ values.owner | dump }}
+  lifecycle: experimental
+  system: tenantforge

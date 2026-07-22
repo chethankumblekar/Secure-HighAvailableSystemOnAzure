@@ -1,0 +1,56 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: tenant-service
+  title: New tenant service
+  description: >-
+    Scaffolds a new tenant service — a health-checked Go HTTP server,
+    Dockerfile, and Helm chart — following the same pattern proven in
+    workloads/sample-service.
+spec:
+  owner: user:guest
+  type: service
+
+  parameters:
+    - title: Service details
+      required:
+        - name
+        - description
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique, lowercase, hyphenated name for the new service (e.g. billing-api)
+          pattern: '^[a-z][a-z0-9-]*$'
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+          description: What this service does
+        owner:
+          title: Owner
+          type: string
+          description: Owning team or user (Backstage entity ref, e.g. user:guest or group:platform-team)
+          default: user:guest
+
+  steps:
+    - id: fetch-base
+      name: Generate service skeleton
+      action: fetch:template
+      input:
+        url: ./content
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+
+    - id: log
+      name: Summary
+      action: debug:log
+      input:
+        message: >-
+          Generated ${{ parameters.name }} (Go service, Dockerfile, Helm
+          chart, catalog-info.yaml) in the task workspace. Publishing to a
+          real git remote and auto-registering in the catalog needs a
+          GitHub integration token, not configured for this local demo —
+          see platform/backstage/README.md for what's wired vs. not.
