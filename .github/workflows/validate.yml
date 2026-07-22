@@ -68,6 +68,19 @@ jobs:
       - name: kubeconform
         run: PATH="$(go env GOPATH)/bin:$PATH" scripts/validate-manifests.sh
 
+  finops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r finops/orphan-cleanup/requirements-dev.txt -r finops/cost-dashboards/requirements-dev.txt
+      # No AWS credentials needed or used — orphan_cleanup's tests run
+      # against moto (mocked AWS), and cost_report's tests exercise only
+      # format_report, a pure function. Neither test suite calls real AWS.
+      - run: python3 -m pytest finops/orphan-cleanup finops/cost-dashboards -v
+
   backstage:
     runs-on: ubuntu-latest
     defaults:

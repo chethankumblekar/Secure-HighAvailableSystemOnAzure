@@ -11,6 +11,11 @@ crash.log
 # terraform-generated dotfiles like .terraform.tfstate.lock.info
 *.terraform.tfstate.lock.info
 
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
 # OS
 .DS_Store
 
