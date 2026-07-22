@@ -34,5 +34,5 @@ pending GitHub rename ([[project-tenantforge]] memory has that context).
 - This is a deliberate tradeoff, not the "correct" enterprise answer: in a
   real multi-tenant platform with a paying customer, ACR (or ECR for the
   AWS reference impl) with private endpoints and no public registry
-  exposure is the right call. Worth saying exactly that in an interview if
-  asked why GHCR is here instead of ACR.
+  exposure is the right call — GHCR is scoped to this project's $0-tier
+  constraint, not a recommendation for production multi-tenant workloads.

@@ -43,6 +43,5 @@ responses, per route) stays above 5% for 5 minutes. Defined in
 
 ## Escalation
 
-This is a portfolio/demo system with no on-call — there's no pager to
-escalate to. In a real deployment this section would name the owning team
-and their paging channel.
+There is no on-call rotation for this system. In a production deployment
+this section would name the owning team and their paging channel.

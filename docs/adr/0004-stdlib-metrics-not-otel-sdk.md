@@ -17,7 +17,7 @@ to the collector instead of being scraped. But `ci.yml` currently has:
 cache: false # no go.sum — zero external dependencies, nothing to cache
 ```
 
-That's not an oversight — Phase 2 deliberately kept this "boring" reference
+That's not an oversight — Phase 2 deliberately kept this minimal reference
 service on the standard library only, to keep the thing being proven
 (container → Helm → AKS → ArgoCD → observability) decoupled from any one
 instrumentation vendor's SDK weight and transitive-dependency surface.
@@ -50,7 +50,8 @@ vendor-neutral and swappable.
   p95 latency), not a general-purpose client library. If a future workload
   in this repo needs traces or more metric types, reach for the real OTel
   SDK then rather than extending this by hand.
-- This is a demo-scale call, not a template for a real multi-service
-  platform: a fleet of services should standardize on one instrumentation
-  library (OTel SDK) rather than each hand-rolling exposition format. Worth
-  saying exactly that if asked in an interview, same as [ADR-0003](0003-ghcr-over-acr.md)'s GHCR-over-ACR tradeoff.
+- This is a single-service-scale call, not a template for a real
+  multi-service platform: a fleet of services should standardize on one
+  instrumentation library (the OTel SDK) rather than each hand-rolling
+  exposition format — the same category of tradeoff as
+  [ADR-0003](0003-ghcr-over-acr.md)'s GHCR-over-ACR decision.

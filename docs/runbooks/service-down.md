@@ -54,5 +54,5 @@ badly; this one means nothing is answering at all. Defined in
 
 ## Escalation
 
-Portfolio/demo system, no on-call. In a real deployment this section would
-name the owning team and their paging channel.
+There is no on-call rotation for this system. In a production deployment
+this section would name the owning team and their paging channel.

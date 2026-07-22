@@ -8,12 +8,12 @@ Accepted
 Service (Linux Web App + deployment slots) as the compute layer, chosen for
 its free/cheap F1/B1 tier and built-in slot-swap rollback.
 
-The project's purpose changed: this repo is no longer a generic "secure
-Azure app" demo, it's TenantForge — a platform-engineering flagship meant to
-prove Kubernetes, Helm, and GitOps depth for a Senior DevOps/Platform
-Engineer interview track. App Service demonstrates none of that; it hides
-the exact layer (container orchestration, workload identity federation into
-a cluster, Helm-packaged services, ArgoCD sync) the project exists to prove.
+The project's scope changed: this repo is no longer a generic "secure
+Azure app" reference, it's TenantForge — a platform-engineering system
+meant to demonstrate production Kubernetes, Helm, and GitOps operational
+depth. App Service doesn't exercise any of that; it hides the exact layer
+(container orchestration, workload identity federation into a cluster,
+Helm-packaged services, ArgoCD sync) the project exists to prove out.
 
 ## Decision
 - Replace the `appservice` Terraform module with an `aks` module:

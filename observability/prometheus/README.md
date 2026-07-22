@@ -49,7 +49,8 @@ chart itself) and `platform/argocd/overlays/local/observability-app.yaml`
 ## Not yet wired up
 
 - No Alertmanager receiver beyond the chart default (alerts fire and show
-  in the UI; nothing pages anywhere — there's no on-call for a portfolio
-  project). A real deployment would wire a Slack/PagerDuty receiver here.
-- `retention: 6h` — this is a demo cluster torn down after each session,
-  not a system that needs long-term metrics retention.
+  in the UI; nothing pages anywhere, since there's no on-call rotation
+  behind this system). A production deployment would wire a
+  Slack/PagerDuty receiver here.
+- `retention: 6h` — this cluster is torn down after each session, not a
+  long-lived system that needs extended metrics retention.

@@ -4,11 +4,12 @@ TenantForge is two layers shipped together:
 
 1. **The Platform** — a self-service, golden-path system for standing up
    secure, observable, cost-governed multi-tenant services on Azure. This is
-   the real deliverable and the thing that proves "Platform Engineer," not
-   just "DevOps Engineer."
+   the primary deliverable: the operational surface a platform team owns,
+   not any one service running on top of it.
 2. **The Reference Workload** — one deliberately simple multi-tenant API
    service that exists only to prove the platform works end-to-end. Kept
-   boring on purpose — the platform is the star.
+   simple on purpose — the platform is what's under evaluation, not the
+   workload's business logic.
 
 ## Diagram
 
@@ -84,7 +85,7 @@ flowchart TB
     AKS -.watched by.-> OrphanBot
     EKS -.watched by.-> OrphanBot
 
-    subgraph AI["Differentiator"]
+    subgraph AI["AI Ops (stretch)"]
         AIOps["AI ops assistant -- alert triage"]
     end
     SLO --> AIOps
@@ -92,26 +93,29 @@ flowchart TB
 
 ## Current state (see [docs/roadmap.md](roadmap.md) for phase status)
 
-Phase 1 (Azure landing zone) is in progress: `infra/terraform/azure` wires
-`resource_group -> network -> aks -> keyvault -> monitoring -> policy`. AKS
-replaced App Service as the compute target — see
-[ADR-0002](adr/0002-appservice-to-aks-pivot.md) for why. Nothing in this
-diagram beyond the Azure landing-zone modules has been built yet; the tree
-under `platform/`, `workloads/`, `observability/`, `security/`, `finops/`,
-and `ai-ops-assistant/` is scaffolded with placeholder READMEs pointing at
-the phase that fills them in.
+`infra/terraform/azure` wires `resource_group -> network -> aks -> keyvault
+-> monitoring -> policy` — AKS replaced App Service as the compute target
+(see [ADR-0002](adr/0002-appservice-to-aks-pivot.md)) — but is not yet
+applied against real Azure. `infra/terraform/aws` is applied and verified:
+a live VPC/EKS cluster on AWS with IRSA wired for workload identity. The
+reference workload, CI/CD supply-chain pipeline, ArgoCD GitOps, and the
+observability stack (OTel collector → Prometheus → Grafana → SLO alerting
+→ runbooks) are built and verified end-to-end on both a local `kind`
+cluster and the live AWS/GHCR pipeline. `security/`, `finops/`, and
+`ai-ops-assistant/` are scaffolded with READMEs pointing at the phase that
+fills them in.
 
 ## Tech stack by layer
 
-| Layer | Tools | Gap closed |
+| Layer | Tools | Purpose |
 |---|---|---|
-| IaC | Terraform (modules + Terraform Cloud remote state), Azure Policy-as-code | Terraform depth |
-| Compute | AKS, node autoscaling (later), Azure Container Apps for lighter services (stretch) | K8s production depth |
-| Packaging & delivery | Helm, ArgoCD (app-of-apps GitOps) | Helm + GitOps |
-| CI/CD & supply chain | GitHub Actions, CodeQL (SAST), Trivy (image scan), Syft (SBOM), cosign (signing) | DevSecOps / supply-chain security |
-| Identity | Microsoft Entra Workload Identity Federation (OIDC, no static cloud secrets), Key Vault | Zero-trust patterns |
-| Networking/Edge | Azure Front Door + WAF, Kubernetes NetworkPolicies | Reinforces existing strength |
-| Observability | OpenTelemetry, Prometheus, Grafana, SLO/error-budget alerting | Formalizes production uptime experience |
-| Platform/IDP | Backstage software templates for tenant/service onboarding | Platform Engineering / golden paths |
-| FinOps | Orphan-resource bot, Cost Management API dashboards | Cost Optimization pillar |
-| Differentiator | Small AI ops assistant (alert triage) | Agentic AI ops |
+| IaC | Terraform (modules + Terraform Cloud remote state), Azure Policy-as-code | Repeatable, reviewable infrastructure provisioning |
+| Compute | AKS, EKS, node autoscaling (later), Azure Container Apps for lighter services (stretch) | Portable, production-shaped container orchestration |
+| Packaging & delivery | Helm, ArgoCD (app-of-apps GitOps) | Declarative packaging and drift-free deployment |
+| CI/CD & supply chain | GitHub Actions, CodeQL (SAST), Trivy (image scan), Syft (SBOM), cosign (signing) | Nothing reaches the cluster unscanned or unsigned |
+| Identity | Microsoft Entra Workload Identity Federation / AWS IRSA (OIDC, no static cloud secrets), Key Vault | Zero-trust identity end to end |
+| Networking/Edge | Azure Front Door + WAF, AWS ALB, Kubernetes NetworkPolicies | Defense at the edge and inside the cluster |
+| Observability | OpenTelemetry, Prometheus, Grafana, SLO/error-budget alerting | Production-shaped visibility into what's running |
+| Platform/IDP | Backstage software templates for tenant/service onboarding | Self-service golden paths for new tenants |
+| FinOps | Orphan-resource bot, Cost Management API dashboards | Cost as a first-class, visible signal |
+| AI ops assistant | Alert-triage assistant (stretch) | Agentic response to SLO burn-rate alerts |

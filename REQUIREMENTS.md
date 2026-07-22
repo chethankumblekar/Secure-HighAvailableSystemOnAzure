@@ -3,9 +3,8 @@
 ## Goal
 
 Prove, with a real running system rather than a slide deck, that the
-author can design and operate the infrastructure and delivery platform
-underneath a product — not just deploy one. Target audience: interviewers
-for a Senior DevOps/Platform Engineer role.
+infrastructure and delivery platform underneath a product can be designed
+and operated end-to-end — not just deployed once and left alone.
 
 ## Functional requirements
 

@@ -1,10 +1,10 @@
 # TenantForge
 
-A production-grade, well-architected multi-tenant platform on Azure (with a
-portable AWS reference implementation) — built as a flagship
-platform-engineering project, not a demo app. See
-[docs/architecture.md](docs/architecture.md) for the full design and
-[docs/roadmap.md](docs/roadmap.md) for current phase status.
+A production-grade, well-architected multi-tenant platform on Azure, with a
+portable AWS reference implementation proving the same modules aren't
+locked to one cloud. See [docs/architecture.md](docs/architecture.md) for
+the full design and [docs/roadmap.md](docs/roadmap.md) for current phase
+status.
 
 ## What this is
 
@@ -24,20 +24,24 @@ each mapped explicitly to Microsoft's Well-Architected Framework pillars in
 
 ## Status
 
-Phase 1 (Azure landing zone) is in progress. Nothing has been deployed to
-Azure yet — see [docs/roadmap.md](docs/roadmap.md) for exact phase status
-and [ADR-0002](docs/adr/0002-appservice-to-aks-pivot.md) for the most recent
+The AWS reference implementation, the containerized reference workload,
+the CI/CD supply-chain pipeline, ArgoCD GitOps, and the observability
+stack (metrics, SLO alerting, dashboards, runbooks) are built and verified
+against real infrastructure. The primary Azure landing zone is wired in
+Terraform but not yet applied. See [docs/roadmap.md](docs/roadmap.md) for
+exact phase-by-phase status and verification notes, and
+[ADR-0002](docs/adr/0002-appservice-to-aks-pivot.md) for the most recent
 architectural decision (App Service → AKS).
 
 ## Repo layout
 
 ```
 docs/                    architecture, ADRs, roadmap, runbooks
-infra/terraform/azure/   PRIMARY landing zone (Terraform modules + envs)
-infra/terraform/aws/     reference implementation, not yet built
+infra/terraform/azure/   primary landing zone (Terraform modules + envs)
+infra/terraform/aws/     portable reference implementation, applied and verified
 platform/                Backstage golden paths, ArgoCD app-of-apps
 workloads/               the reference service
-observability/           Prometheus, Grafana, OTel collector configs
+observability/           OTel collector, Prometheus SLOs, Grafana dashboards
 security/                OPA policies, pipeline security configs
 finops/                  cost dashboards, budget alerts, orphan-cleanup bot
 ai-ops-assistant/        stretch-goal alert-triage assistant

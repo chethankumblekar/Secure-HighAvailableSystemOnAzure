@@ -1,9 +1,10 @@
 # Reference workload
 
-Phase 2 of [the roadmap](../../docs/roadmap.md). A deliberately boring
+Phase 2 of [the roadmap](../../docs/roadmap.md). A deliberately minimal
 multi-tenant notes API — in-memory store, no framework, standard library
 only — that exists only to prove the platform works end-to-end. The
-platform is the star, not this service.
+platform under it is what's being evaluated, not this service's business
+logic.
 
 ## API
 
