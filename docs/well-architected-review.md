@@ -10,6 +10,6 @@ each phase lands — this is a living document, not written once at the end.
 | Security | Key Vault (RBAC), AKS workload identity + OIDC issuer, resource-group policy assignment, SAST/scan/SBOM/signing (Phase 3), tenant NetworkPolicy + OPA/Gatekeeper admission policy (Phase 5) | — | WAF is cloud-specific infra, waits on Phase 1's real `terraform apply` |
 | Cost Optimization | Free AKS control-plane SKU, single burstable node, apply-demo-destroy workflow | — | Autoscaling, spot node pool, orphan-cleanup bot, budget alerts are Phase 6 |
 | Operational Excellence | GitOps-ready module layout, ADRs (`docs/adr/`), per-alert runbooks (`docs/runbooks/`), self-service tenant onboarding via Backstage (`platform/backstage`), automated tests across every component wired into CI (`TESTING.md`, `scripts/test-all.sh`) | — | Blameless postmortem template, DR drill log are Phase 9 |
-| Performance Efficiency | SLO-based latency alerting (p95 < 500ms) via `observability/prometheus/slo-rules.yaml` | — | HPA/KEDA, Front Door caching, k6 load testing are Phase 2/9 |
+| Performance Efficiency | SLO-based latency alerting (p95 < 500ms) via `observability/prometheus/slo-rules.yaml`; k6 load test (`loadtest/k6/`) found and confirmed the single-replica CPU-limit ceiling for real — see [`docs/load-test-report.md`](load-test-report.md) | — | HPA/KEDA and Front Door caching are Phase 2/6; a load test run with autoscaling enabled to show it actually absorbing load is a natural follow-up |
 
 See [docs/roadmap.md](roadmap.md) for the phase-by-phase plan.
