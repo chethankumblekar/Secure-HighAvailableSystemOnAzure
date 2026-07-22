@@ -23,16 +23,22 @@ work best when they fit into that structure rather than going around it.
    run/test instructions (`workloads/sample-service/README.md`,
    `observability/*/README.md`, `security/policies/README.md`,
    `platform/backstage/README.md`, `platform/argocd/README.md`).
-3. Run the relevant checks before opening a PR:
-   - Go changes: `cd workloads/sample-service && go vet ./... && go test ./...`
-   - Terraform changes: `terraform fmt -check` and `terraform validate` in
-     the affected `infra/terraform/<cloud>` directory
-   - Helm chart changes: `helm lint` the affected chart
-   - Kubernetes manifests (`observability/`, `security/policies/gatekeeper/`,
-     `platform/argocd/`): validate against a local `kind` cluster where
-     practical — the relevant README documents how each piece was verified
-4. Open a PR against `main` with a clear description of what changed and
-   why. Link the roadmap phase or issue it relates to.
+3. Run `scripts/test-all.sh` before opening a PR — it runs every
+   automated check (Go, Helm, Terraform, OPA/Gatekeeper, Kubernetes
+   manifests, Backstage) in the same order CI does. See
+   [TESTING.md](TESTING.md) for what each check covers, and for the parts
+   that are only practically verified against a live cluster (NetworkPolicy
+   enforcement, ArgoCD sync, the full observability pipeline, the
+   Backstage scaffolder) — if you touch one of those, re-verify it
+   manually using the linked README and say what you ran in the PR
+   description.
+4. Add a test for new behavior. A new Gatekeeper constraint needs a
+   `_test.rego` (see `security/policies/gatekeeper/tests/`); a new HTTP
+   handler needs a case in `cmd/server/main_test.go`; a new Terraform
+   module needs to pass `validate` at minimum.
+5. Open a PR against `main` with a clear description of what changed and
+   why, and what you verified (the PR template asks for this explicitly).
+   Link the roadmap phase or issue it relates to.
 
 ## Architecture Decision Records
 

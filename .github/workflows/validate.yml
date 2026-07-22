@@ -1,0 +1,91 @@
+name: Validate
+
+# Everything in the repo that isn't the sample-service image pipeline
+# (that's ci.yml): Helm chart, Terraform modules, Gatekeeper Rego
+# policies, raw Kubernetes manifests, and the Backstage app. Each runs as
+# an independent job so a failure in one doesn't hide the others — see
+# TESTING.md for the full picture and how to run all of this locally
+# with one command (scripts/test-all.sh).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Lint
+        run: helm lint workloads/sample-service/helm
+      - name: Template (default values)
+        run: helm template test-release workloads/sample-service/helm > /tmp/rendered-default.yaml
+      - name: Template (ingress + autoscaling enabled)
+        run: |
+          helm template test-release workloads/sample-service/helm \
+            --set ingress.enabled=true --set autoscaling.enabled=true > /tmp/rendered-full.yaml
+      - name: kubeconform
+        run: |
+          go install github.com/yannh/kubeconform/cmd/kubeconform@v0.6.7
+          "$(go env GOPATH)/bin/kubeconform" -strict -summary /tmp/rendered-default.yaml /tmp/rendered-full.yaml
+
+  terraform:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cloud: [azure, aws]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: fmt
+        run: terraform -chdir=infra/terraform/${{ matrix.cloud }} fmt -check -recursive
+      - name: init (no backend)
+        run: terraform -chdir=infra/terraform/${{ matrix.cloud }} init -backend=false -input=false
+      - name: validate
+        run: terraform -chdir=infra/terraform/${{ matrix.cloud }} validate
+
+  opa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+      - name: Rego unit tests
+        run: security/policies/gatekeeper/tests/run.sh
+
+  k8s-manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: go install github.com/yannh/kubeconform/cmd/kubeconform@v0.6.7
+      - name: kubeconform
+        run: PATH="$(go env GOPATH)/bin:$PATH" scripts/validate-manifests.sh
+
+  backstage:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform/backstage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: yarn install --immutable
+      # NOT `yarn backstage-cli repo test --ci` — it defaults to
+      # --onlyChanged, which (especially against actions/checkout's
+      # shallow history) can find nothing changed and hang instead of
+      # exiting cleanly. Invoking jest directly with the same config runs
+      # the full suite and actually exits — see scripts/test-all.sh.
+      - run: |
+          node_modules/.bin/jest \
+            --config node_modules/@backstage/cli-module-test-jest/config/jest.js \
+            --watchAll=false --ci

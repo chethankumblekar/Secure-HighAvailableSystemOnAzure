@@ -73,6 +73,13 @@ terraform plan -var-file=envs/dev/dev.tfvars
 Set an Azure budget + spend alert first (see
 [finops/budget-alerts](finops/budget-alerts/README.md), not yet automated).
 
+## Testing
+
+`scripts/test-all.sh` runs every automated check (Go, Helm, Terraform,
+OPA/Gatekeeper, Kubernetes manifests, Backstage) in one command — see
+[TESTING.md](TESTING.md) for what's covered, what's intentionally manual,
+and why the Gatekeeper policy tests exist.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, ADR
