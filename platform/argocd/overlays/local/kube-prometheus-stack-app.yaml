@@ -23,7 +23,7 @@ spec:
       helm:
         valueFiles:
           - $values/observability/prometheus/values.yaml
-    - repoURL: https://github.com/chethankumblekar/Secure-HighAvailableSystemOnAzure.git
+    - repoURL: https://github.com/chethankumblekar/tenantforge.git
       targetRevision: HEAD
       ref: values
   destination:

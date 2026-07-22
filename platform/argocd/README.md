@@ -30,13 +30,8 @@ jsonpath='{.data.password}' | base64 -d`.
 `destination.server` — it needs the real AKS cluster registered
 (`argocd cluster add`) once Phase 1's `terraform apply` actually runs.
 
-## AWS (Tier 3b) — not built
+## AWS (Tier 3b) — cluster live, ArgoCD not yet targeted at it
 
-No `overlays/aws/` yet — waits on the Phase 1b EKS reference implementation.
-
-## A note on repo URLs
-
-Every manifest here points at the **current** GitHub repo name
-(`Secure-HighAvailableSystemOnAzure`), not `tenantforge` — the rename is
-still pending (see `docs/roadmap.md`). Update `repoURL` in every
-`overlays/*/*.yaml` and `app-of-apps/root-app.yaml` once that happens.
+The Phase 1b EKS cluster (`infra/terraform/aws`) is applied and verified,
+but there's no `overlays/aws/` yet — that's the remaining step to prove
+the same GitOps definitions deploy to it, not just AKS/`kind`.

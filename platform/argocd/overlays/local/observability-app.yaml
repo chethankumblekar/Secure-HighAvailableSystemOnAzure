@@ -19,7 +19,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/chethankumblekar/Secure-HighAvailableSystemOnAzure.git
+    repoURL: https://github.com/chethankumblekar/tenantforge.git
     targetRevision: HEAD
     path: observability
     directory:

@@ -2,10 +2,6 @@
 #   kubectl apply -f platform/argocd/app-of-apps/root-app.yaml
 # Everything else — every Application under overlays/<env>/ — is then
 # managed declaratively by ArgoCD itself (app-of-apps pattern).
-#
-# NOTE: repoURL is the CURRENT GitHub repo name. Update it (here and in
-# every overlays/*/*.yaml) once the pending rename to `tenantforge` lands —
-# see docs/roadmap.md and the memory note on this project for that status.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -14,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/chethankumblekar/Secure-HighAvailableSystemOnAzure.git
+    repoURL: https://github.com/chethankumblekar/tenantforge.git
     targetRevision: HEAD
     path: platform/argocd/overlays/local
   destination:

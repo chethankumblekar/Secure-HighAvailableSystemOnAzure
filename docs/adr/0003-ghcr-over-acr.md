@@ -23,8 +23,8 @@ a public repo, authenticates in Actions with the built-in `GITHUB_TOKEN`
 ## Decision
 Use GHCR for the CI pipeline's image push, SBOM attachment, and cosign
 signing in Phase 3. `ghcr.io/<owner>/tenantforge-sample-service` is the
-image name — independent of the repo's own name so it survives the
-pending GitHub rename ([[project-tenantforge]] memory has that context).
+image name — independent of the repo's own name, so a future repo rename
+never requires touching the published image name.
 
 ## Consequences
 - AKS needs `imagePullSecrets` (a GHCR PAT or fine-grained token) to pull a
