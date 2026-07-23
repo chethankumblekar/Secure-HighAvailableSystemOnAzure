@@ -38,6 +38,31 @@ alertmanager:
       requests:
         cpu: 25m
         memory: 64Mi
+  # Routes the three sample-service SLO alerts (observability/prometheus/
+  # slo-rules.yaml) to ai-ops-assistant/webhook_receiver.py running on the
+  # host — host.docker.internal is Docker Desktop-specific (macOS/Windows);
+  # on Linux, either run kind with `extraMounts`/`--add-host` wiring an
+  # equivalent hostname, or deploy the receiver in-cluster instead. See
+  # ai-ops-assistant/README.md for how this was actually verified.
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "null"
+      group_by: ["alertname"]
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 12h
+      routes:
+        - receiver: ai-ops-assistant
+          matchers:
+            - alertname =~ "SampleService.*"
+    receivers:
+      - name: "null"
+      - name: ai-ops-assistant
+        webhook_configs:
+          - url: http://host.docker.internal:9095/alerts
+            send_resolved: false
 
 grafana:
   adminPassword: admin # local kind demo only — never do this against a real cluster

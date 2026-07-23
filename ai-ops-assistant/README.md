@@ -34,6 +34,31 @@ Add `--dry-run` to print the constructed prompt without calling the API —
 useful for checking what context was actually gathered before spending a
 request on it.
 
+## Webhook receiver
+
+`webhook_receiver.py` is the automatic path: an HTTP server that
+Alertmanager POSTs to when an alert fires, so triage runs without anyone
+invoking `triage.py --alert` by hand.
+
+```bash
+python3 webhook_receiver.py --port 9095 --prometheus-url http://localhost:9090
+```
+
+It exposes `GET /healthz` and `POST /alerts` (the shape Alertmanager's
+`webhook_config` sends). Alertmanager expects a fast 2xx ack, so the
+server responds immediately and runs triage after — see the module
+docstring for why that's deliberate, not a missed timeout. Alerts for
+anything not in `triage.ALERT_INFO` (e.g. kube-prometheus-stack's own
+`Watchdog`) are ignored rather than erroring, since this receiver only
+has runbooks for TenantForge's own alerts.
+
+Wired into Alertmanager via `observability/prometheus/values.yaml`'s
+`alertmanager.config` — routes the three `SampleService*` alerts to
+`http://host.docker.internal:9095/alerts`. `host.docker.internal` is
+Docker Desktop-specific (macOS/Windows); on Linux either run `kind` with
+an equivalent `extraMounts`/`--add-host` hostname, or deploy the receiver
+in-cluster instead.
+
 ## Verified for real
 
 Context-gathering runs against this repo's real files and real git
@@ -50,9 +75,21 @@ configured for standalone scripts to use. Same boundary as
 calls: the parts that can be tested without live credentials are tested;
 the credentialed call itself is correct by construction.
 
+The full pipeline was verified end-to-end on a local `kind` cluster
+(`tenantforge-aiops`): `sample-service` + OTel collector + kube-prometheus-stack
+installed with the `alertmanager.config` receiver wired to a
+`webhook_receiver.py` running on the host, scaled `sample-service` to 0
+to induce a real `SampleServiceDown`, and confirmed Alertmanager itself —
+not a manually-crafted curl payload — routed the firing alert to the
+receiver. The receiver's log showed the real POST, `parse_alertmanager_payload`
+extracting the alert, `gather_context` pulling the matching runbook and
+recent commits, and the documented graceful fallback when the Claude API
+call fails for lack of a key. `test_webhook_receiver.py` covers
+`parse_alertmanager_payload` against a fixture matching Alertmanager's
+real webhook JSON shape.
+
 ## Not yet wired up
 
-- No Alertmanager webhook receiver — invoked manually with `--alert`
-  today, not triggered automatically when an alert actually fires.
 - No posting the drafted note anywhere (Slack, a GitHub issue comment) —
-  prints to stdout.
+  prints to stdout (or, via the webhook receiver, to stderr on whatever
+  host is running it).
