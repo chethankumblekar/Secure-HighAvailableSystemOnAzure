@@ -42,11 +42,11 @@ security/policies/gatekeeper/tests/run.sh
 section "Kubernetes manifests: kubeconform"
 scripts/validate-manifests.sh
 
-section "FinOps: pytest (orphan-cleanup, cost-dashboards)"
+section "FinOps + AI ops: pytest (orphan-cleanup, cost-dashboards, triage)"
 if ! python3 -c "import pytest, moto" >/dev/null 2>&1; then
-  echo "pytest/moto not importable — run 'pip install -r requirements-dev.txt' in finops/orphan-cleanup and finops/cost-dashboards first. Skipping." >&2
+  echo "pytest/moto not importable — run 'pip install -r requirements-dev.txt' in finops/orphan-cleanup, finops/cost-dashboards, and ai-ops-assistant first. Skipping." >&2
 else
-  python3 -m pytest finops/orphan-cleanup finops/cost-dashboards -v
+  python3 -m pytest finops/orphan-cleanup finops/cost-dashboards ai-ops-assistant -v
 fi
 
 if [ "$skip_backstage" = true ]; then
