@@ -1,0 +1,53 @@
+# AWS (Tier 3b) overlay: same chart, same GHCR image as ../local, proving
+# portability. The same Helm/ArgoCD definitions deploy to real EKS, not just
+# kind/AKS. Adds AWS Load Balancer Controller Ingress annotations so this
+# gets a real public ALB with the Phase 5 WAF web ACL attached.
+#
+# ingress.host is deliberately empty. No owned domain for the demo, so the
+# Ingress matches any Host header and the ALB's own public DNS name works
+# directly (see workloads/sample-service/helm/templates/ingress.yaml, host is
+# templated as optional for exactly this case).
+#
+# wafv2-acl-arn is only known after `terraform apply`. See
+# docs/demo-script.md for the PLACEHOLDER substitution step (same convention
+# as ../azure/sample-service-app.yaml).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chethankumblekar/tenantforge.git
+    targetRevision: HEAD
+    path: workloads/sample-service/helm
+    helm:
+      parameters:
+        - name: image.repository
+          value: ghcr.io/chethankumblekar/tenantforge-sample-service
+        - name: image.tag
+          value: latest
+        - name: image.pullPolicy
+          value: Always
+        - name: ingress.enabled
+          value: "true"
+        - name: ingress.className
+          value: alb
+        - name: ingress.host
+          value: ""
+        - name: ingress.annotations.alb\.ingress\.kubernetes\.io/scheme
+          value: internet-facing
+        - name: ingress.annotations.alb\.ingress\.kubernetes\.io/target-type
+          value: ip
+        - name: ingress.annotations.alb\.ingress\.kubernetes\.io/wafv2-acl-arn
+          value: PLACEHOLDER_WAF_WEB_ACL_ARN
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

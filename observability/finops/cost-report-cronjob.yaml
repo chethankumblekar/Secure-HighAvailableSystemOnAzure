@@ -1,0 +1,36 @@
+# Fetches finops/cost-dashboards/cost_report.py from the published repo
+# (public GitHub, same trust model this project already uses for pulling the
+# public, signed GHCR image, see Phase 3's ci.yml) rather than duplicating the
+# script into a ConfigMap, so there's one source of truth for the report
+# logic. --push-gateway pushes one aws_cost_usd_daily gauge per AWS service
+# for the Grafana finops dashboard. Requires finops-dashboard's changes to
+# already be on `main` before this CronJob's first run.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cost-reporter
+  namespace: observability
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: cost-reporter
+          restartPolicy: Never
+          containers:
+            - name: cost-reporter
+              image: python:3.12-slim
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  python3 - <<'PY'
+                  import urllib.request
+                  base = "https://raw.githubusercontent.com/chethankumblekar/tenantforge/main/finops/cost-dashboards/"
+                  for f in ("cost_report.py", "requirements.txt"):
+                      urllib.request.urlretrieve(base + f, f)
+                  PY
+                  pip install --quiet -r requirements.txt
+                  python3 cost_report.py --push-gateway http://pushgateway.observability.svc.cluster.local:9091 --days 7

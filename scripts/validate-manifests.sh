@@ -19,8 +19,10 @@ kubeconform \
   observability/grafana/*.yaml \
   observability/prometheus/servicemonitor.yaml \
   observability/prometheus/slo-rules.yaml \
+  observability/finops/*.yaml \
   security/policies/gatekeeper/constrainttemplates/*.yaml \
   security/policies/gatekeeper/constraints/*.yaml \
   platform/argocd/app-of-apps/*.yaml \
   platform/argocd/overlays/local/*.yaml \
-  platform/argocd/overlays/azure/*.yaml
+  platform/argocd/overlays/azure/*.yaml \
+  platform/argocd/overlays/aws/*.yaml

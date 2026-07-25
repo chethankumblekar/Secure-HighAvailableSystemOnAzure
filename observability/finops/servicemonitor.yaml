@@ -1,0 +1,19 @@
+# honorLabels: true so the per-service `service` label pushed by
+# cost_report.py --push-gateway (finops/cost-dashboards/cost_report.py)
+# survives, matching the same care taken in ../prometheus/servicemonitor.yaml
+# for the OTel collector's job/instance labels.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pushgateway
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [observability]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pushgateway
+  endpoints:
+    - port: http
+      interval: 30s
+      honorLabels: true

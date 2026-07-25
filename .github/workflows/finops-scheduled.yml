@@ -1,0 +1,41 @@
+name: FinOps - scheduled cost/orphan check
+
+# Standing guardrail, independent of whether the AWS demo infra is currently
+# applied or destroyed (see infra/terraform/aws/main.tf's github_oidc module
+# comment: that role is deliberately excluded from the routine destroy).
+# orphan_cleanup.py runs dry-run only (never --delete) and failing the job is
+# the alert: nothing found -> exit 0 -> green; something found -> exit 1 ->
+# red, visible in the Actions tab / notifications. cost_report.py always
+# succeeds and just prints real spend for the window.
+#
+# Requires a repository variable FINOPS_CI_ROLE_ARN set to the
+# `finops_ci_role_arn` Terraform output (infra/terraform/aws/outputs.tf).
+# An ARN isn't a secret, so this is a repo Variable, not a Secret.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  finops-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.FINOPS_CI_ROLE_ARN }}
+          aws-region: eu-north-1
+      - run: pip install -r finops/orphan-cleanup/requirements.txt -r finops/cost-dashboards/requirements.txt
+      - name: Orphan scan (dry run, exit 1 if anything is found)
+        run: python3 finops/orphan-cleanup/orphan_cleanup.py --project tenantforge --region eu-north-1
+      - name: Cost report (always runs, even if the orphan scan above failed)
+        if: always()
+        run: python3 finops/cost-dashboards/cost_report.py --days 30

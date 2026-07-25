@@ -1,14 +1,18 @@
-# Recursively applies every plain-YAML manifest under observability/ —
+# Recursively applies every plain-YAML manifest under observability/:
 # the OTel collector, the sample-service ServiceMonitor + SLO
 # PrometheusRule, and the Grafana dashboard ConfigMap. README.md files in
 # those directories are skipped automatically (ArgoCD's directory source
 # only parses *.yaml/*.yml/*.json).
 #
 # sync-wave "1" is a soft ordering hint against kube-prometheus-stack-app.yaml
-# (wave "0" by default) for when the root app-of-apps creates both — it does
+# (wave "0" by default) for when the root app-of-apps creates both. It does
 # NOT guarantee the ServiceMonitor/PrometheusRule CRDs already exist by the
 # time this Application's own sync runs. If they don't yet, this app's sync
 # fails until kube-prometheus-stack's CRDs land, then self-heals on retry.
+#
+# observability/finops/** is excluded here: it needs an AWS IRSA-annotated
+# ServiceAccount (see infra/terraform/aws/modules/iam) that only exists on
+# the real EKS cluster. overlays/aws/finops-app.yaml applies it there instead.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -24,6 +28,7 @@ spec:
     path: observability
     directory:
       recurse: true
+      exclude: "finops/**"
   destination:
     server: https://kubernetes.default.svc
     namespace: observability

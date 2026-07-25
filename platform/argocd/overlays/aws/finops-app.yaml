@@ -1,0 +1,30 @@
+# AWS-only: Pushgateway + CronJob that periodically pushes real AWS Cost
+# Explorer numbers (finops/cost-dashboards/cost_report.py --push-gateway) into
+# the same kube-prometheus-stack Prometheus/Grafana this cluster already runs.
+# ../local/observability-app.yaml explicitly excludes observability/finops/**
+# since only this overlay has the IRSA-annotated ServiceAccount it needs
+# (infra/terraform/aws/modules/iam's finops_cost_reporter role).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: finops
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chethankumblekar/tenantforge.git
+    targetRevision: HEAD
+    path: observability/finops
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

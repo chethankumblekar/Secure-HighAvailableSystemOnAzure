@@ -1,0 +1,51 @@
+# Same auto-provisioning mechanism as ./dashboard-configmap.yaml (grafana
+# sidecar watches every namespace for the grafana_dashboard label). Data
+# source: observability/finops/cost-report-cronjob.yaml pushing
+# aws_cost_usd_daily via finops/cost-dashboards/cost_report.py --push-gateway.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finops-dashboard
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  finops.json: |
+    {
+      "title": "TenantForge FinOps",
+      "uid": "tenantforge-finops",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "timezone": "utc",
+      "time": { "from": "now-24h", "to": "now" },
+      "refresh": "5m",
+      "panels": [
+        {
+          "id": 1,
+          "title": "AWS spend by service (most recent Cost Explorer period)",
+          "type": "timeseries",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+          "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] },
+          "targets": [
+            {
+              "expr": "aws_cost_usd_daily",
+              "legendFormat": "{{service}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Total AWS spend (most recent Cost Explorer period)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 10 },
+          "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] },
+          "targets": [
+            {
+              "expr": "sum(aws_cost_usd_daily)",
+              "legendFormat": "total"
+            }
+          ]
+        }
+      ]
+    }

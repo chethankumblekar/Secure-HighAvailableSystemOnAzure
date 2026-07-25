@@ -1,0 +1,51 @@
+# Installs the AWS Load Balancer Controller. It creates the real ALB from the
+# sample-service Ingress (see ../../../../infra/terraform/aws/modules/alb: the
+# Terraform module only provisions the IAM policy, not the ALB itself) using
+# the IRSA role infra/terraform/aws/modules/iam provisions.
+#
+# vpcId and the role-arn annotation are only known after `terraform apply`.
+# See docs/demo-script.md for the substitution step that fills these
+# PLACEHOLDER values in before this file is applied (same convention as
+# ../azure/sample-service-app.yaml's PLACEHOLDER_AKS_CLUSTER_NOT_YET_DEPLOYED).
+# clusterName is deterministic: "${project_name}-${environment}-eks" from
+# infra/terraform/aws/main.tf's `locals.cluster_name`.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+  annotations:
+    # Must land, and its ServiceAccount/CRDs be Healthy, before sample-service's
+    # Ingress can be reconciled into a real ALB.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    # Verify against `helm search repo eks/aws-load-balancer-controller` before
+    # tomorrow's apply and bump if a newer stable patch exists.
+    targetRevision: "1.8.2"
+    helm:
+      parameters:
+        - name: clusterName
+          value: tenantforge-dev-eks
+        - name: region
+          value: eu-north-1
+        - name: vpcId
+          value: PLACEHOLDER_VPC_ID
+        - name: serviceAccount.create
+          value: "true"
+        - name: serviceAccount.name
+          value: aws-load-balancer-controller
+        - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
+          value: PLACEHOLDER_LB_CONTROLLER_ROLE_ARN
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

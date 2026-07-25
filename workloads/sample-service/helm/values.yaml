@@ -31,6 +31,10 @@ ingress:
   className: ""
   host: sample-service.local
   path: /
+  # Arbitrary annotations, e.g. AWS ALB Ingress Controller annotations
+  # (alb.ingress.kubernetes.io/scheme, .../wafv2-acl-arn). Kept generic here;
+  # the cloud-specific values are supplied by the ArgoCD Application, not the chart.
+  annotations: {}
 
 networkPolicy:
   enabled: true

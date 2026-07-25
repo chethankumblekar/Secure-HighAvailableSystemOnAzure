@@ -5,12 +5,18 @@ metadata:
   name: {{ include "sample-service.name" . }}
   labels:
     {{- include "sample-service.labels" . | nindent 4 }}
+  {{- if .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+  {{- end }}
 spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
   {{- end }}
   rules:
-    - host: {{ .Values.ingress.host }}
+    - {{- if .Values.ingress.host }}
+      host: {{ .Values.ingress.host }}
+      {{- end }}
       http:
         paths:
           - path: {{ .Values.ingress.path }}

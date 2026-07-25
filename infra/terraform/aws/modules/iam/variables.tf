@@ -28,3 +28,15 @@ variable "lb_controller_service_account_name" {
   type        = string
   default     = "aws-load-balancer-controller"
 }
+
+variable "finops_reporter_namespace" {
+  description = "Kubernetes namespace the FinOps cost-reporter CronJob's service account lives in"
+  type        = string
+  default     = "observability"
+}
+
+variable "finops_reporter_service_account_name" {
+  description = "Kubernetes service account name the FinOps cost-reporter CronJob uses"
+  type        = string
+  default     = "cost-reporter"
+}

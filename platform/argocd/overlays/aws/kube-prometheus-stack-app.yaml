@@ -1,0 +1,38 @@
+# Same as ../local/kube-prometheus-stack-app.yaml, except one override:
+# ../../../../observability/prometheus/values.yaml hardcodes
+# `grafana.adminPassword: admin`, explicitly commented "local kind demo only,
+# never do this against a real cluster". `grafana.admin.existingSecret`
+# (Helm parameters apply after valueFiles, so this wins) points Grafana at a
+# real, randomly-generated password in a Secret instead. See
+# docs/demo-script.md for the `kubectl create secret` step that must run
+# before this Application syncs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: "87.18.0"
+      helm:
+        valueFiles:
+          - $values/observability/prometheus/values.yaml
+        parameters:
+          - name: grafana.admin.existingSecret
+            value: grafana-admin-credentials
+    - repoURL: https://github.com/chethankumblekar/tenantforge.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

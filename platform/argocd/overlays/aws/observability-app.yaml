@@ -1,0 +1,28 @@
+# Same file as ../local/observability-app.yaml, including the finops/**
+# exclude. finops-app.yaml (this directory) applies that path separately,
+# since only this AWS overlay has the IRSA-annotated ServiceAccount it needs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chethankumblekar/tenantforge.git
+    targetRevision: HEAD
+    path: observability
+    directory:
+      recurse: true
+      exclude: "finops/**"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

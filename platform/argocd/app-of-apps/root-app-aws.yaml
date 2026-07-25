@@ -1,0 +1,26 @@
+# The AWS counterpart to ./root-app.yaml. Applied once by hand after ArgoCD
+# is bootstrapped directly on the EKS cluster (see platform/argocd/README.md,
+# "AWS (Tier 3b)"):
+#   kubectl apply -f platform/argocd/app-of-apps/root-app-aws.yaml
+# Everything else, every Application under overlays/aws/, is then managed
+# declaratively by ArgoCD itself, same app-of-apps pattern as ./root-app.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-of-apps-aws
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chethankumblekar/tenantforge.git
+    targetRevision: HEAD
+    path: platform/argocd/overlays/aws
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

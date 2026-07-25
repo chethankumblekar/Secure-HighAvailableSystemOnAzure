@@ -21,6 +21,7 @@ import datetime
 import sys
 
 import boto3
+from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 
 
 def fetch_cost_and_usage(session: boto3.Session, start: str, end: str) -> dict:
@@ -64,10 +65,45 @@ def format_report(response: dict, start: str, end: str) -> str:
     return "\n".join(lines)
 
 
+def latest_period_costs(response: dict) -> list[tuple[str, float]]:
+    """Per-service costs for the most recent period in a Cost Explorer
+    response. Feeds --push-gateway, not the CLI report (which shows every
+    period)."""
+    results = response.get("ResultsByTime", [])
+    if not results:
+        return []
+    return [
+        (g["Keys"][0], float(g["Metrics"]["UnblendedCost"]["Amount"]))
+        for g in results[-1].get("Groups", [])
+    ]
+
+
+def push_costs(gateway_url: str, costs: list[tuple[str, float]]) -> None:
+    # Real network call to the Pushgateway, like fetch_cost_and_usage's call
+    # to Cost Explorer. Not unit-tested for the same reason (see module
+    # docstring): there's no logic here worth mocking, just a real push.
+    registry = CollectorRegistry()
+    gauge = Gauge(
+        "aws_cost_usd_daily",
+        "AWS spend by service, most recent Cost Explorer period",
+        ["service"],
+        registry=registry,
+    )
+    for name, amount in costs:
+        gauge.labels(service=name).set(amount)
+    push_to_gateway(gateway_url, job="cost_report", registry=registry)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--days", type=int, default=30, help="how many days back to report (default: 30)")
     parser.add_argument("--region", default=None, help="AWS region for the session (Cost Explorer itself is global)")
+    parser.add_argument(
+        "--push-gateway",
+        default=None,
+        metavar="URL",
+        help="Prometheus Pushgateway URL to also push per-service cost gauges to, e.g. http://pushgateway.observability.svc.cluster.local:9091",
+    )
     args = parser.parse_args(argv)
 
     end = datetime.date.today()
@@ -76,6 +112,10 @@ def main(argv: list[str] | None = None) -> int:
     session = boto3.Session(region_name=args.region)
     response = fetch_cost_and_usage(session, start.isoformat(), end.isoformat())
     print(format_report(response, start.isoformat(), end.isoformat()))
+
+    if args.push_gateway:
+        push_costs(args.push_gateway, latest_period_costs(response))
+
     return 0
 
 
