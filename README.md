@@ -36,8 +36,10 @@ OPA/Gatekeeper admission policy, and the Backstage self-service onboarding
 template are built and verified against real infrastructure. The primary
 Azure landing zone is wired in Terraform but not yet applied. See
 [docs/roadmap.md](docs/roadmap.md) for exact phase-by-phase status and
-verification notes, and [ADR-0002](docs/adr/0002-appservice-to-aks-pivot.md)
-for the most recent architectural decision (App Service → AKS).
+verification notes, [docs/tour/README.md](docs/tour/README.md) for a
+phase-by-phase walkthrough with screenshots/CLI proof, and
+[ADR-0002](docs/adr/0002-appservice-to-aks-pivot.md) for the most recent
+architectural decision (App Service → AKS).
 
 ## Repo layout
 
