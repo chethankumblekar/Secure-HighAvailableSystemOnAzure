@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TenantForge — Architecture &amp; Build Log</title>
+<meta name="description" content="Architecture, system flow, and phase-by-phase build log for TenantForge, a production-grade multi-tenant platform on Azure with a portable AWS reference implementation.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230B0E14'/%3E%3Ctext x='50' y='66' font-family='monospace' font-weight='bold' font-size='44' fill='%2335D399' text-anchor='middle'%3E%3E_%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg: #0B0E14;
+    --surface: #10141C;
+    --surface-2: #161B26;
+    --border: #232B38;
+    --text: #E7EAF0;
+    --text-muted: #8A93A6;
+    --text-faint: #5B6478;
+    --accent-done: #35D399;
+    --accent-partial: #F0A93E;
+    --accent-blue: #5FA8FF;
+    --accent-idle: #4B5468;
+
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+    --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 72px; --sp-9: 104px;
+
+    --maxw: 980px;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0) 0 0/28px 28px,
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font-sans);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  a{ color:var(--accent-blue); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  a:focus-visible, button:focus-visible{ outline:2px solid var(--accent-blue); outline-offset:3px; border-radius:2px; }
+
+  .wrap{ max-width:var(--maxw); margin:0 auto; padding:0 var(--sp-5); }
+
+  code, .mono{ font-family:var(--font-mono); }
+
+  /* ---------- top bar ---------- */
+  header.topbar{
+    position:sticky; top:0; z-index:20;
+    background:rgba(11,14,20,0.86);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--border);
+  }
+  .topbar-inner{
+    max-width:var(--maxw); margin:0 auto; padding:var(--sp-3) var(--sp-5);
+    display:flex; align-items:center; justify-content:space-between; gap:var(--sp-4);
+  }
+  .brand{ font-family:var(--font-mono); font-size:.95rem; color:var(--text); }
+  .brand .path{ color:var(--text-faint); }
+  nav.toplinks{ display:flex; gap:var(--sp-5); font-family:var(--font-mono); font-size:.8rem; }
+  nav.toplinks a{ color:var(--text-muted); }
+  nav.toplinks a:hover{ color:var(--text); text-decoration:none; }
+  @media (max-width:640px){ nav.toplinks{ display:none; } }
+
+  /* ---------- hero ---------- */
+  .hero{ padding:var(--sp-8) 0 var(--sp-7); }
+  .boot{
+    font-family:var(--font-mono); font-size:.82rem; color:var(--text-faint);
+    margin-bottom:var(--sp-4);
+  }
+  .boot-cmd{
+    display:inline-block; overflow:hidden; white-space:nowrap;
+    border-right:2px solid var(--accent-done);
+    width:14ch;
+    animation: typing 1s steps(14,end) 1, blink .85s step-end infinite;
+  }
+  @keyframes typing{ from{ width:0; } to{ width:14ch; } }
+  @keyframes blink{ 50%{ border-color:transparent; } }
+  @media (prefers-reduced-motion: reduce){
+    .boot-cmd{ animation:none; border-right:none; width:auto; }
+  }
+
+  h1{
+    font-family:var(--font-mono); font-weight:700;
+    font-size:clamp(1.9rem, 4.6vw, 3.1rem);
+    line-height:1.18; letter-spacing:-0.01em;
+    margin:0 0 var(--sp-4);
+  }
+  .hero p.lede{
+    max-width:62ch; color:var(--text-muted); font-size:1.05rem; margin:0 0 var(--sp-6);
+  }
+
+  .stats{ display:flex; flex-wrap:wrap; gap:var(--sp-3); margin-bottom:var(--sp-6); }
+  .stat{
+    border:1px solid var(--border); border-radius:8px; padding:var(--sp-3) var(--sp-4);
+    background:var(--surface); min-width:140px;
+  }
+  .stat .n{ font-family:var(--font-mono); font-size:1.4rem; font-weight:700; }
+  .stat .n.done{ color:var(--accent-done); }
+  .stat .n.partial{ color:var(--accent-partial); }
+  .stat .n.blue{ color:var(--accent-blue); }
+  .stat .l{ font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
+
+  .hero-links{ display:flex; gap:var(--sp-4); flex-wrap:wrap; font-family:var(--font-mono); font-size:.88rem; }
+  .hero-links a{ color:var(--text); border-bottom:1px solid var(--border); padding-bottom:2px; }
+  .hero-links a:hover{ border-color:var(--accent-blue); text-decoration:none; }
+
+  /* ---------- generic section ---------- */
+  section{ padding:var(--sp-8) 0; border-top:1px solid var(--border); }
+  .eyebrow{
+    font-family:var(--font-mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--accent-blue); margin:0 0 var(--sp-2);
+  }
+  h2{ font-family:var(--font-mono); font-size:clamp(1.3rem,2.6vw,1.7rem); margin:0 0 var(--sp-3); }
+  .section-intro{ color:var(--text-muted); max-width:66ch; margin:0 0 var(--sp-6); }
+
+  /* ---------- two-layer cards ---------- */
+  .layers{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-4); }
+  @media (max-width:720px){ .layers{ grid-template-columns:1fr; } }
+  .layer-card{ border:1px solid var(--border); background:var(--surface); border-radius:10px; padding:var(--sp-5); }
+  .layer-card .tag{ font-family:var(--font-mono); font-size:.72rem; color:var(--text-faint); text-transform:uppercase; letter-spacing:.08em; }
+  .layer-card h3{ margin:var(--sp-2) 0 var(--sp-3); font-size:1.05rem; }
+  .layer-card p{ color:var(--text-muted); margin:0; font-size:.94rem; }
+
+  /* ---------- flow diagram ---------- */
+  .tier{ border:1px solid var(--border); border-radius:10px; padding:var(--sp-5); background:var(--surface); margin-bottom:var(--sp-4); }
+  .tier-head{ display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); margin-bottom:var(--sp-4); flex-wrap:wrap; }
+  .tier-label{ font-family:var(--font-mono); font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); }
+  .tier-badge{ font-family:var(--font-mono); font-size:.7rem; padding:2px 8px; border-radius:999px; border:1px solid var(--border); }
+  .tier-badge.free{ color:var(--accent-done); border-color:rgba(53,211,153,.35); }
+  .tier-badge.applied{ color:var(--accent-done); border-color:rgba(53,211,153,.35); }
+  .tier-badge.pending{ color:var(--accent-partial); border-color:rgba(240,169,62,.35); }
+
+  .pipeline{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--sp-1) 0; }
+  .node{
+    padding:8px 12px; border:1px solid var(--border); border-radius:6px;
+    background:var(--surface-2); font-family:var(--font-mono); font-size:.8rem; white-space:nowrap;
+  }
+  .arrow{ color:var(--text-faint); padding:0 6px; font-family:var(--font-mono); font-size:.8rem; }
+
+  .cloud-split{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-4); }
+  @media (max-width:720px){ .cloud-split{ grid-template-columns:1fr; } }
+
+  .sync-note{
+    text-align:center; font-family:var(--font-mono); font-size:.76rem; color:var(--text-faint);
+    margin:var(--sp-2) 0; letter-spacing:.03em;
+  }
+
+  .crosscut-label{
+    text-align:center; font-family:var(--font-mono); font-size:.72rem; color:var(--text-faint);
+    text-transform:uppercase; letter-spacing:.1em; margin:var(--sp-5) 0 var(--sp-3);
+  }
+  .crosscut{ display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-3); }
+  @media (max-width:720px){ .crosscut{ grid-template-columns:1fr 1fr; } }
+  .cc-card{ border:1px solid var(--border); border-radius:8px; padding:var(--sp-4); background:var(--surface); }
+  .cc-card .cc-title{ font-family:var(--font-mono); font-size:.85rem; color:var(--text); margin-bottom:4px; }
+  .cc-card .cc-desc{ font-size:.82rem; color:var(--text-muted); }
+
+  /* ---------- stack grid ---------- */
+  .stack-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:var(--sp-4); }
+  @media (max-width:720px){ .stack-grid{ grid-template-columns:1fr; } }
+  .stack-card{ border:1px solid var(--border); border-radius:8px; padding:var(--sp-4); background:var(--surface); }
+  .stack-card .layer-name{ font-family:var(--font-mono); font-size:.78rem; color:var(--accent-blue); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+  .stack-card .tools{ font-size:.92rem; margin-bottom:6px; }
+  .stack-card .purpose{ font-size:.82rem; color:var(--text-muted); }
+
+  /* ---------- phase ledger ---------- */
+  .phase-row{
+    display:grid; grid-template-columns:64px 1fr; gap:var(--sp-4);
+    padding:var(--sp-5) 0; border-bottom:1px solid var(--border);
+    opacity:0; transform:translateY(8px);
+    animation:reveal .5s ease forwards;
+  }
+  .phase-row:last-child{ border-bottom:none; }
+  @keyframes reveal{ to{ opacity:1; transform:translateY(0); } }
+  @media (prefers-reduced-motion: reduce){ .phase-row{ opacity:1; transform:none; animation:none; } }
+
+  .phase-id{ font-family:var(--font-mono); font-size:.82rem; color:var(--text-faint); padding-top:2px; }
+  .phase-head{ display:flex; align-items:baseline; gap:var(--sp-3); flex-wrap:wrap; margin-bottom:var(--sp-2); }
+  .phase-head h3{ margin:0; font-size:1rem; font-weight:600; }
+
+  .pill{
+    display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px;
+    font-family:var(--font-mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
+    border:1px solid var(--border);
+  }
+  .pill.done{ color:var(--accent-done); border-color:rgba(53,211,153,.4); background:rgba(53,211,153,.08); }
+  .pill.partial{ color:var(--accent-partial); border-color:rgba(240,169,62,.4); background:rgba(240,169,62,.08); }
+
+  .phase-note{ color:var(--text-muted); font-size:.92rem; max-width:70ch; }
+  .phase-note code{ font-size:.85em; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+
+  .evidence-tag{
+    display:inline-block; margin-top:var(--sp-3); font-family:var(--font-mono); font-size:.72rem;
+    color:var(--text-faint); border:1px dashed var(--border); padding:2px 8px; border-radius:6px;
+  }
+
+  /* ---------- terminal block ---------- */
+  .term{ margin-top:var(--sp-3); border:1px solid var(--border); border-radius:8px; overflow:hidden; background:#0A0D13; }
+  .term-bar{
+    display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2);
+    padding:6px 12px; background:var(--surface-2); border-bottom:1px solid var(--border);
+  }
+  .term-path{ font-family:var(--font-mono); font-size:.72rem; color:var(--text-faint); }
+  .term pre{
+    margin:0; padding:var(--sp-4); font-family:var(--font-mono); font-size:.8rem; line-height:1.55;
+    color:#C8D0DE; overflow-x:auto; white-space:pre;
+  }
+  .term pre .prompt{ color:var(--accent-done); }
+  .term pre .muted{ color:var(--text-faint); }
+
+  /* ---------- cost tiers ---------- */
+  .cost-list{ display:flex; flex-direction:column; gap:var(--sp-4); }
+  .cost-item{ display:grid; grid-template-columns:40px 1fr; gap:var(--sp-4); }
+  .cost-tier-n{ font-family:var(--font-mono); font-size:1.1rem; color:var(--accent-blue); }
+  .cost-item h3{ margin:0 0 4px; font-size:1rem; }
+  .cost-item p{ margin:0; color:var(--text-muted); font-size:.92rem; }
+
+  /* ---------- footer ---------- */
+  footer{ border-top:1px solid var(--border); padding:var(--sp-8) 0 var(--sp-9); }
+  .honesty{
+    border-left:2px solid var(--accent-blue); padding:var(--sp-2) var(--sp-5);
+    color:var(--text-muted); font-size:.94rem; max-width:70ch; margin-bottom:var(--sp-6);
+  }
+  .doclinks{ display:flex; flex-wrap:wrap; gap:var(--sp-2) var(--sp-5); font-family:var(--font-mono); font-size:.85rem; margin-bottom:var(--sp-5); }
+  .foot-meta{ font-family:var(--font-mono); font-size:.76rem; color:var(--text-faint); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="path">~/</span>tenantforge</div>
+    <nav class="toplinks">
+      <a href="#flow">flow</a>
+      <a href="#stack">stack</a>
+      <a href="#log">build log</a>
+      <a href="#cost">cost</a>
+      <a href="https://github.com/chethankumblekar/tenantforge">repo ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero" style="border-top:none;">
+    <div class="boot"><span class="mono">$ </span><span class="boot-cmd">cat MISSION</span></div>
+    <h1>A platform team's golden path,<br>proved on real infrastructure.</h1>
+    <p class="lede">
+      A production-grade, well-architected multi-tenant platform on Azure, with a
+      portable AWS reference implementation proving the same modules aren't locked
+      to one cloud. Everything below is synced with
+      <code class="mono">docs/roadmap.md</code> — the durable source of truth for
+      status across sessions, not this page.
+    </p>
+
+    <div class="stats">
+      <div class="stat"><div class="n done">6 / 11</div><div class="l">phases done</div></div>
+      <div class="stat"><div class="n partial">5</div><div class="l">phases in progress</div></div>
+      <div class="stat"><div class="n blue">$0.00</div><div class="l">verified spend, 60&nbsp;days</div></div>
+      <div class="stat"><div class="n done">AWS</div><div class="l">applied &amp; verified live</div></div>
+    </div>
+
+    <div class="hero-links">
+      <a href="#flow">See the system flow ↓</a>
+      <a href="https://github.com/chethankumblekar/tenantforge">GitHub repo ↗</a>
+    </div>
+  </section>
+
+  <section id="what">
+    <p class="eyebrow">What this is</p>
+    <h2>Two layers, shipped together</h2>
+    <div class="layers">
+      <div class="layer-card">
+        <div class="tag">Primary deliverable</div>
+        <h3>The Platform</h3>
+        <p>A self-service, golden-path system for standing up secure, observable,
+        cost-governed multi-tenant services on Azure. This is the operational
+        surface a platform team owns — Terraform IaC, GitOps delivery, supply-chain
+        security, observability, an internal developer platform, and FinOps
+        governance.</p>
+      </div>
+      <div class="layer-card">
+        <div class="tag">Proof, not the point</div>
+        <h3>The Reference Workload</h3>
+        <p>One deliberately simple multi-tenant API service that exists only to
+        prove the platform works end-to-end. Kept simple on purpose — the platform
+        is what's under evaluation here, not the workload's business logic.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="flow">
+    <p class="eyebrow">System flow</p>
+    <h2>From a laptop to two clouds</h2>
+    <p class="section-intro">Three tiers, cost-gated in that order: unlimited local
+    iteration, free CI on GitHub, and real cloud infrastructure only in short,
+    deliberate bursts.</p>
+
+    <div class="tier">
+      <div class="tier-head">
+        <span class="tier-label">Tier 1 — Local dev</span>
+        <span class="tier-badge free">free · unlimited</span>
+      </div>
+      <div class="pipeline">
+        <span class="node">kind cluster</span><span class="arrow">→</span>
+        <span class="node">reference workload + Helm</span><span class="arrow">→</span>
+        <span class="node">ArgoCD (local)</span><span class="arrow">→</span>
+        <span class="node">Prometheus / Grafana / OTel</span>
+      </div>
+    </div>
+
+    <div class="tier">
+      <div class="tier-head">
+        <span class="tier-label">Tier 2 — GitHub</span>
+        <span class="tier-badge free">free on public repos</span>
+      </div>
+      <div class="pipeline">
+        <span class="node">GitHub Actions CI</span><span class="arrow">→</span>
+        <span class="node">CodeQL (SAST)</span><span class="arrow">→</span>
+        <span class="node">Trivy (image scan)</span><span class="arrow">→</span>
+        <span class="node">Syft SBOM + cosign sign</span><span class="arrow">→</span>
+        <span class="node">GHCR</span><span class="arrow">→</span>
+        <span class="node">GitOps manifests repo</span>
+      </div>
+    </div>
+
+    <div class="sync-note">↓ ArgoCD sync ↓</div>
+
+    <div class="cloud-split">
+      <div class="tier" style="margin-bottom:0;">
+        <div class="tier-head">
+          <span class="tier-label">Tier 3a — Azure</span>
+          <span class="tier-badge pending">wired, not applied</span>
+        </div>
+        <div class="pipeline">
+          <span class="node">Terraform</span><span class="arrow">→</span>
+          <span class="node">VNet / Subnets / NSGs</span><span class="arrow">→</span>
+          <span class="node">AKS</span>
+        </div>
+        <div class="pipeline" style="margin-top:6px;">
+          <span class="node">Key Vault</span>
+          <span class="node">Azure SQL serverless</span>
+          <span class="node">Front Door + WAF</span>
+          <span class="node">Entra Workload Identity</span>
+          <span class="node">Backstage golden paths</span>
+        </div>
+      </div>
+      <div class="tier" style="margin-bottom:0;">
+        <div class="tier-head">
+          <span class="tier-label">Tier 3b — AWS</span>
+          <span class="tier-badge applied">applied &amp; verified</span>
+        </div>
+        <div class="pipeline">
+          <span class="node">Terraform</span><span class="arrow">→</span>
+          <span class="node">VPC / Subnets / SGs</span><span class="arrow">→</span>
+          <span class="node">EKS</span>
+        </div>
+        <div class="pipeline" style="margin-top:6px;">
+          <span class="node">IAM / IRSA</span>
+          <span class="node">ALB Ingress</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="crosscut-label">cross-cutting, wired to both clouds</div>
+    <div class="crosscut">
+      <div class="cc-card">
+        <div class="cc-title">Observability</div>
+        <div class="cc-desc">OTel → Prometheus → Grafana → SLO alerting → runbooks</div>
+      </div>
+      <div class="cc-card">
+        <div class="cc-title">Security</div>
+        <div class="cc-desc">NetworkPolicy tenant isolation, OPA/Gatekeeper admission</div>
+      </div>
+      <div class="cc-card">
+        <div class="cc-title">FinOps</div>
+        <div class="cc-desc">Budget alerts → orphan-cleanup bot → cost dashboards</div>
+      </div>
+      <div class="cc-card">
+        <div class="cc-title">AI ops</div>
+        <div class="cc-desc">SLO burn-rate alerts → automated triage assistant</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <p class="eyebrow">Tech stack</p>
+    <h2>By layer, not by logo</h2>
+    <p class="section-intro">Each tool earns its place against one job the layer
+    has to do — not a resume of technologies.</p>
+    <div class="stack-grid">
+      <div class="stack-card">
+        <div class="layer-name">IaC</div>
+        <div class="tools">Terraform (modules + Terraform Cloud remote state), Azure Policy-as-code</div>
+        <div class="purpose">Repeatable, reviewable infrastructure provisioning</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer-name">Compute</div>
+        <div class="tools">AKS, EKS, node autoscaling (later), Azure Container Apps (stretch)</div>
+        <div class="purpose">Portable, production-shaped container orchestration</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer-name">Packaging &amp; delivery</div>
+        <div class="tools">Helm, ArgoCD (app-of-apps GitOps)</div>
+        <div class="purpose">Declarative packaging and drift-free deployment</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer-name">CI/CD &amp; supply chain</div>
+        <div class="tools">GitHub Actions, CodeQL, Trivy, Syft, cosign</div>
+        <div class="purpose">Nothing reaches the cluster unscanned or unsigned</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer-name">Identity</div>
+        <div class="tools">Entra Workload Identity Federation / AWS IRSA (OIDC, no static cloud secrets), Key Vault</div>
+        <div class="purpose">Zero-trust identity end to end</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer-name">Networking / edge</div>
+        <div class="tools">Azure Front Door + WAF, AWS ALB, Kubernetes NetworkPolicies</div>
+        <div class="purpose">Defense at the edge and inside the cluster</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer-name">Observability</div>
+        <div class="tools">OpenTelemetry, Prometheus, Grafana, SLO / error-budget alerting</div>
+        <div class="purpose">Production-shaped visibility into what's running</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer-name">Platform / IDP</div>
+        <div class="tools">Backstage software templates for tenant/service onboarding</div>
+        <div class="purpose">Self-service golden paths for new tenants</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer-name">FinOps</div>
+        <div class="tools">Orphan-resource bot, Cost Management API dashboards</div>
+        <div class="purpose">Cost as a first-class, visible signal</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer-name">AI ops assistant</div>
+        <div class="tools">Alert-triage assistant (stretch)</div>
+        <div class="purpose">Agentic response to SLO burn-rate alerts</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="log">
+    <p class="eyebrow">Build log</p>
+    <h2>Phase by phase, with real evidence</h2>
+    <p class="section-intro">Status mirrors <code class="mono">docs/roadmap.md</code>
+    exactly. Terminal blocks are real, dated command output copied from
+    <code class="mono">docs/tour/README.md</code> — where nothing has been captured
+    yet, this page says so instead of describing what it would show.</p>
+
+    <div class="phase-row">
+      <div class="phase-id">0</div>
+      <div>
+        <div class="phase-head"><h3>Plan</h3><span class="pill done">Done</span></div>
+        <p class="phase-note">ADRs, architecture doc, repo scaffolded — <code>docs/adr/0001</code>, <code>docs/adr/0002</code>, <code>docs/architecture.md</code>, full target tree.</p>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">1</div>
+      <div>
+        <div class="phase-head"><h3>Azure landing zone</h3><span class="pill partial">In progress</span></div>
+        <p class="phase-note">Terraform modules for network, AKS, Key Vault, monitoring, policy, remote state. <code>infra/terraform/azure</code> is wired but not yet <code>terraform apply</code>'d against real Azure.</p>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">1b</div>
+      <div>
+        <div class="phase-head"><h3>AWS reference implementation</h3><span class="pill done">Done</span></div>
+        <p class="phase-note">VPC → EKS → ALB → IAM/IRSA, applied for real against AWS eu-north-1 (Terraform Cloud workspace <code>tenantforge-aws-dev</code>): VPC + NAT + EKS cluster + node group verified live, one Ready node. IRSA wired via OIDC for the AWS Load Balancer Controller.</p>
+        <span class="evidence-tag">visual proof: pending live AWS session per docs/demo-script.md</span>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">2</div>
+      <div>
+        <div class="phase-head"><h3>Reference workload</h3><span class="pill done">Done</span></div>
+        <p class="phase-note"><code>workloads/sample-service</code> — a Go notes API, distroless image (~13MB), Helm chart verified end-to-end on a local <code>kind</code> cluster.</p>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">3</div>
+      <div>
+        <div class="phase-head"><h3>CI/CD + GitOps</h3><span class="pill done">Done</span></div>
+        <p class="phase-note">GitHub Actions (build/test → Trivy → Syft → GHCR push → cosign sign + SBOM attest) verified for real: image confirmed publicly pullable, cosign signature independently verified against Rekor. ArgoCD app-of-apps synced <code>sample-service</code> from git on a fresh <code>kind</code> cluster, reaching Healthy and serving traffic.</p>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">4</div>
+      <div>
+        <div class="phase-head"><h3>Observability</h3><span class="pill done">Done</span></div>
+        <p class="phase-note">OTel collector → Prometheus → Grafana → SLO alerting → runbooks, verified end-to-end on local <code>kind</code> including the full GitOps sync path. Three alerts (HighErrorRate / HighLatency / Down) each link a runbook. Found and fixed a real CRD-size sync bug along the way (needed <code>ServerSideApply=true</code>).</p>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">5</div>
+      <div>
+        <div class="phase-head"><h3>Security hardening</h3><span class="pill partial">Partial</span></div>
+        <p class="phase-note">Workload Identity done in Phase 1. NetworkPolicy + OPA/Gatekeeper verified on a Calico-enabled <code>kind</code> cluster: cross-namespace traffic blocked, a non-compliant pod rejected by all three Gatekeeper constraints. Found and fixed a real Rego bug. WAF is cloud-specific infra waiting on Phase 1's real Azure apply.</p>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">6</div>
+      <div>
+        <div class="phase-head"><h3>FinOps</h3><span class="pill partial">Partial</span></div>
+        <p class="phase-note">Built AWS-first against real applied infrastructure. <code>orphan_cleanup.py</code> scans EKS/EC2/NAT/EIP/EBS for tagged resources; <code>cost_report.py</code> pulls real AWS Cost Explorer data. Not yet wired: no Grafana panel, no scheduled run, no Azure equivalent.</p>
+        <div class="term">
+          <div class="term-bar"><span class="term-path">docs/tour — captured 2026-07-25</span></div>
+          <pre><span class="prompt">$</span> python3 finops/orphan-cleanup/orphan_cleanup.py --project tenantforge --region eu-north-1
+No orphaned 'tenantforge' resources found in eu-north-1.
+
+<span class="prompt">$</span> python3 finops/cost-dashboards/cost_report.py --days 30
+AWS spend, 2026-06-25 to 2026-07-25 (UnblendedCost, USD)
+<span class="muted">...</span>
+Grand total: $0.00</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">7</div>
+      <div>
+        <div class="phase-head"><h3>Platform / IDP</h3><span class="pill done">Done</span></div>
+        <p class="phase-note"><code>platform/backstage</code> — a real Backstage instance with one software template (<code>tenant-service</code>) scaffolding a Go service + Dockerfile + Helm chart. Verified by driving the actual UI: all 15 templated files wrote correctly with substituted values.</p>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">8</div>
+      <div>
+        <div class="phase-head"><h3>AI ops assistant</h3><span class="pill partial">Partial</span></div>
+        <p class="phase-note"><code>triage.py</code> gathers real context — the matching runbook, recent commits, the live Prometheus metric — and drafts a note via the Claude API. <code>webhook_receiver.py</code> makes it automatic: Alertmanager POSTs a firing alert straight to it. Verified end-to-end, including the graceful fallback when no API key is set.</p>
+        <div class="term">
+          <div class="term-bar"><span class="term-path">docs/tour — captured 2026-07-25</span></div>
+          <pre><span class="prompt">$</span> python3 triage.py --alert SampleServiceHighLatency \
+    --label route="/tenants/{tenantID}/notes" \
+    --annotation summary="p95 above 500ms for 10m" --dry-run
+Alert: SampleServiceHighLatency
+<span class="muted">...</span>
+Recent commits touching the affected code:
+  3f65e81 Add automated tests for every component, wire into CI, document the flow
+  b74cc3f Phase 5: NetworkPolicy tenant isolation + OPA/Gatekeeper admission policy
+  7dcbfe0 docs: tighten tone, fix stale status, verify ArgoCD sync for real
+  <span class="muted">...</span>
+
+<span class="prompt">$</span> curl -s -X POST http://localhost:9095/alerts -H 'Content-Type: application/json' -d '{...}'
+accepted
+
+<span class="muted">(server stderr)</span>
+=== Triaging SampleServiceHighLatency ===
+could not reach the Claude API ("Could not resolve authentication method...");
+falling back to the raw context.</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-row">
+      <div class="phase-id">9</div>
+      <div>
+        <div class="phase-head"><h3>Load test, DR drill, write-up</h3><span class="pill partial">Partial</span></div>
+        <p class="phase-note">k6 load test run for real against <code>sample-service</code> on local <code>kind</code>: 20 VUs stayed at p95=10ms, comfortably inside SLO; a 100-VU stress run pushed p95 to 2.4s and <code>SampleServiceHighLatency</code> was confirmed pending in Prometheus mid-run — the alert → runbook path responding to a real, induced regression. DR drill, blog post, and demo video not started.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="cost">
+    <p class="eyebrow">Cost discipline</p>
+    <h2>Built to run on $0–10, not hundreds</h2>
+    <p class="section-intro">From ADR-0001 — a strict order of escalation, never
+    real cloud spend by default.</p>
+    <div class="cost-list">
+      <div class="cost-item">
+        <div class="cost-tier-n">01</div>
+        <div>
+          <h3>Local — $0</h3>
+          <p><code>kind</code> cluster for daily iteration on the workload, Helm, ArgoCD, Prometheus/Grafana/OTel, Backstage.</p>
+        </div>
+      </div>
+      <div class="cost-item">
+        <div class="cost-tier-n">02</div>
+        <div>
+          <h3>GitHub free tier — $0</h3>
+          <p>GitHub Actions + GHCR on this public repo.</p>
+        </div>
+      </div>
+      <div class="cost-item">
+        <div class="cost-tier-n">03</div>
+        <div>
+          <h3>Real Azure/AWS — short paid bursts only</h3>
+          <p><code>terraform apply</code> → screenshot/demo → <code>terraform destroy</code>. A budget + spend alert goes on before the first real apply.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="honesty">
+      “This repo's existing convention is precise text — tables, CLI output,
+      metrics — over screenshots. Where a phase has a real UI, this page uses a
+      real screenshot or gif once one has actually been captured, never a
+      description of what one would show.” — <code class="mono">docs/tour/README.md</code>
+    </p>
+    <div class="doclinks">
+      <a href="architecture.md">architecture.md</a>
+      <a href="roadmap.md">roadmap.md</a>
+      <a href="tour/README.md">tour/README.md</a>
+      <a href="well-architected-review.md">well-architected-review.md</a>
+      <a href="adr/">adr/</a>
+      <a href="../README.md">README.md</a>
+    </div>
+    <p class="foot-meta">Kept in sync with docs/roadmap.md — that file is the source of truth across sessions, not this page.</p>
+  </div>
+</footer>
+
+</body>
+</html>
