@@ -11,6 +11,15 @@ locked to one cloud. See [docs/architecture.md](docs/architecture.md) for
 the full design and [docs/roadmap.md](docs/roadmap.md) for current phase
 status.
 
+## Architecture
+
+[![TenantForge platform architecture](docs/images/architecture.svg)](https://chethankumblekar.github.io/tenantforge/architecture-map.html)
+
+Every colored lane is a separately verified layer, and each component carries
+its own status badge — verified end-to-end, partially verified, or wired but
+not applied. [Open the interactive map](https://chethankumblekar.github.io/tenantforge/architecture-map.html)
+to hover any component for the exact verification behind it.
+
 ## What this is
 
 Two layers, shipped together:

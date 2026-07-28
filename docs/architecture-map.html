@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TenantForge — Architecture</title>
+<style>
+  :root {
+    --page-bg: #eef0f4;
+    --page-ink: #2a2f3a;
+    --page-ink-muted: #6b7280;
+    --frame-bg: #ffffff;
+    --panel-bg: #ffffff;
+    --panel-border: #e2e5ec;
+    --pill-bg: #ffffff;
+    --pill-border: #d7dbe4;
+    --pill-ink: #4b5262;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page-bg: #14161c; --page-ink: #e7e9ef; --page-ink-muted: #9aa0ab; --frame-bg: #1b1e26;
+      --panel-bg: #1f232c; --panel-border: #2c313c; --pill-bg: #1f232c; --pill-border: #333846; --pill-ink: #c3c8d4;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg: #14161c; --page-ink: #e7e9ef; --page-ink-muted: #9aa0ab; --frame-bg: #1b1e26;
+    --panel-bg: #1f232c; --panel-border: #2c313c; --pill-bg: #1f232c; --pill-border: #333846; --pill-ink: #c3c8d4;
+  }
+  :root[data-theme="light"] {
+    --page-bg: #eef0f4; --page-ink: #2a2f3a; --page-ink-muted: #6b7280; --frame-bg: #ffffff;
+    --panel-bg: #ffffff; --panel-border: #e2e5ec; --pill-bg: #ffffff; --pill-border: #d7dbe4; --pill-ink: #4b5262;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page-bg);
+    color: var(--page-ink);
+    font-family: -apple-system, "Segoe UI", ui-sans-serif, sans-serif;
+    padding: 32px 24px 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .masthead { max-width: 900px; text-align: center; }
+  .masthead h1 { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-ink-muted); font-weight: 600; margin: 0 0 6px; }
+  .masthead p { font-size: 13px; color: var(--page-ink-muted); margin: 0; line-height: 1.5; }
+  .masthead code { font-family: ui-monospace, Menlo, Consolas, monospace; background: rgba(127,127,127,0.15); padding: 1px 5px; border-radius: 4px; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; max-width: 1100px; }
+  .toolbar .sep { width: 1px; height: 20px; background: var(--pill-border); margin: 0 4px; }
+  .pill {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--pill-bg); border: 1.3px solid var(--pill-border); color: var(--pill-ink);
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  }
+  .pill:hover { transform: translateY(-1px); }
+  .pill.active { background: var(--page-ink); color: var(--page-bg); border-color: var(--page-ink); }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .pill[data-status="done"] .dot { background: #2f9e5c; }
+  .pill[data-status="partial"] .dot { background: #c9922f; }
+  .pill[data-status="wired"] .dot { background: transparent; border: 1.5px solid #9aa2b1; }
+
+  .stage { display: flex; gap: 18px; max-width: 1720px; width: 100%; align-items: flex-start; }
+  .frame {
+    background: var(--frame-bg);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+  }
+  svg { display: block; width: 100%; height: auto; min-width: 1200px; border-radius: 10px; }
+
+  .chip { cursor: pointer; outline: none; }
+  .chip .chip-box { transition: stroke-width 0.12s ease, filter 0.12s ease; }
+  .chip:hover .chip-box, .chip:focus-visible .chip-box, .chip.selected .chip-box { stroke-width: 2.6; }
+  .chip:hover, .chip:focus-visible, .chip.selected { filter: drop-shadow(0 3px 8px rgba(0,0,0,0.18)); }
+  .chip.dim { opacity: 0.16; }
+  .chip, .chip.dim { transition: opacity 0.18s ease; }
+  .lane-hit { transition: opacity 0.18s ease; }
+  .lane.dim .lane-hit { opacity: 0.35; }
+  .lane.dim text { opacity: 0.35; }
+
+  .flow-line { stroke-dasharray: 1 8; stroke-linecap: round; }
+  @media (prefers-reduced-motion: no-preference) {
+    .flow-line { animation: dash-flow 1.1s linear infinite; }
+  }
+  @keyframes dash-flow { to { stroke-dashoffset: -18; } }
+
+  .side-panel {
+    width: 300px; flex: 0 0 300px;
+    background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 14px;
+    padding: 20px; position: sticky; top: 20px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.12);
+    font-size: 13px; color: var(--page-ink);
+    min-height: 220px;
+  }
+  .side-panel .empty { color: var(--page-ink-muted); font-size: 12.5px; line-height: 1.55; }
+  .side-panel .empty .hint-icon { font-size: 22px; display: block; margin-bottom: 10px; }
+  .side-panel .eyebrow {
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .side-panel .title { font-size: 17px; font-weight: 700; margin: 0 0 3px; }
+  .side-panel .sub {
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; color: var(--page-ink-muted); margin: 0 0 14px;
+  }
+  .side-panel .detail { line-height: 1.6; margin: 0 0 14px; }
+  .side-panel .status-line {
+    display: inline-flex; align-items: center; gap: 6px; font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11px; padding: 4px 10px; border-radius: 999px; border: 1.2px solid var(--panel-border);
+  }
+  .side-panel .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .pin-hint { font-size: 11px; color: var(--page-ink-muted); margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--panel-border); }
+
+  footer { font-size: 12px; color: var(--page-ink-muted); max-width: 900px; text-align: center; }
+  footer code { font-family: ui-monospace, Menlo, Consolas, monospace; background: rgba(127,127,127,0.15); padding: 1px 5px; border-radius: 4px; }
+
+  @media (max-width: 1180px) {
+    .stage { flex-direction: column; }
+    .side-panel { width: 100%; flex-basis: auto; position: static; }
+  }
+</style>
+</head>
+<body>
+<div class="masthead">
+  <h1>Interactive architecture map</h1>
+  <p>Hover or click any component for the exact verification behind it. Click a lane label to isolate that tier. A static snapshot of this diagram lives at <code>docs/images/architecture.svg</code>.</p>
+</div>
+
+<div class="toolbar" id="toolbar">
+  <span class="pill" data-filter="all" aria-pressed="true">ALL</span>
+  <span class="pill" data-status="done" data-filter="done"><span class="dot"></span>VERIFIED</span>
+  <span class="pill" data-status="partial" data-filter="partial"><span class="dot"></span>PARTIAL</span>
+  <span class="pill" data-status="wired" data-filter="wired"><span class="dot"></span>WIRED ONLY</span>
+  <span class="sep"></span>
+  <span class="pill" id="reset-lane" style="display:none;">✕ CLEAR LANE FOCUS</span>
+</div>
+
+<div class="stage">
+  <div class="frame" id="frame">
+<svg viewBox="0 0 1600 1160" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs><symbol id="i-cluster" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,3 19,7.2 19,15.8 12,20 5,15.8 5,7.2"/><circle cx="12" cy="11.5" r="1.8" fill="currentColor" stroke="none"/></symbol><symbol id="i-helm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><line x1="12" y1="12" x2="12" y2="5"/><line x1="12" y1="12" x2="17.06" y2="15.5"/><line x1="12" y1="12" x2="6.94" y2="15.5"/></symbol><symbol id="i-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.7"/><polygon points="17.7,3.6 18.4,7.7 14.3,7.2" fill="currentColor" stroke="none"/><path d="M20 12a8 8 0 0 1-13.7 5.7"/><polygon points="6.3,20.4 5.6,16.3 9.7,16.8" fill="currentColor" stroke="none"/></symbol><symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16a8 8 0 1 1 16 0"/><line x1="12" y1="16" x2="16" y2="10"/><circle cx="12" cy="16" r="1.4" fill="currentColor" stroke="none"/></symbol><symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><polygon points="10,8 10,16 16,12" fill="currentColor" stroke="none"/></symbol><symbol id="i-shieldcheck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><polyline points="8.5,12 11,14.5 15.5,9"/></symbol><symbol id="i-shieldscan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><circle cx="12.6" cy="10.6" r="2.4"/><line x1="14.3" y1="12.3" x2="16.5" y2="14.5"/></symbol><symbol id="i-seal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><polyline points="9.3,9 10.8,10.6 14.2,7.2"/><polyline points="9.3,14.2 7.5,20.5 12,18 16.5,20.5 14.7,14.2"/></symbol><symbol id="i-package" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5"/><polyline points="4,7.5 12,12 20,7.5"/><line x1="12" y1="12" x2="12" y2="21"/></symbol><symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,8 12,4 21,8 12,12 3,8"/><polyline points="3,12.5 12,16.5 21,12.5"/><polyline points="3,17 12,21 21,17"/></symbol><symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"/><circle cx="5" cy="5.5" r="1.8"/><circle cx="19" cy="5.5" r="1.8"/><circle cx="5" cy="18.5" r="1.8"/><circle cx="19" cy="18.5" r="1.8"/><line x1="6.3" y1="6.8" x2="10.6" y2="10.6"/><line x1="17.7" y1="6.8" x2="13.4" y2="10.6"/><line x1="6.3" y1="17.2" x2="10.6" y2="13.4"/><line x1="17.7" y1="17.2" x2="13.4" y2="13.4"/></symbol><symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4.2"/><line x1="11" y1="11" x2="20.5" y2="20.5"/><line x1="16.2" y1="16.2" x2="18.6" y2="13.8"/><line x1="18.4" y1="18.4" x2="20.4" y2="16.4"/></symbol><symbol id="i-db" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12a7 3 0 0 0 14 0V6"/><path d="M5 12a7 3 0 0 0 14 0"/></symbol><symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7.5"/><ellipse cx="12" cy="12" rx="3.2" ry="7.5"/><line x1="4.6" y1="12" x2="19.4" y2="12"/></symbol><symbol id="i-id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3"/><path d="M6 20c0-4 2.7-6 6-6s6 2 6 6"/><circle cx="18.2" cy="17.2" r="2.6"/><polyline points="17,17.2 17.9,18 19.5,16.3"/></symbol><symbol id="i-funnel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="4,5 20,5 13,13 13,19 11,19 11,13"/></symbol><symbol id="i-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,17 9,11 13,14 20,5"/><circle cx="20" cy="5" r="1.6" fill="currentColor" stroke="none"/></symbol><symbol id="i-panels" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/></symbol><symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2a5 5 0 0 0-5 5v3.8l-2 4h14l-2-4V8.2a5 5 0 0 0-5-5z"/><path d="M10 18.8a2 2 0 0 0 4 0"/></symbol><symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.2c2-1.3 5-1.3 8 0v14c-3-1.3-6-1.3-8 0v-14z"/><path d="M20 5.2c-2-1.3-5-1.3-8 0v14c3-1.3 6-1.3 8 0v-14z"/></symbol><symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="11" width="12" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.4" r="1.3" fill="currentColor" stroke="none"/></symbol><symbol id="i-dollar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.2"/><line x1="12" y1="6" x2="12" y2="18"/><path d="M15 8.6c0-1.5-1.5-2.2-3-2.2s-3 .8-3 2.2 1.5 1.9 3 2.2 3 .9 3 2.3-1.5 2.2-3 2.2-3-.7-3-2.2"/></symbol><symbol id="i-broom" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="21" x2="12" y2="12.5"/><polygon points="10.2,12.5 16.5,12.5 18.5,19.5 8,19.5"/></symbol><symbol id="i-template" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></symbol><symbol id="i-robot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8.5" width="14" height="11" rx="2"/><circle cx="9.2" cy="13.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14.8" cy="13.5" r="1.3" fill="currentColor" stroke="none"/><line x1="12" y1="8.5" x2="12" y2="4.3"/><circle cx="12" cy="3.4" r="1.1"/><line x1="5" y1="15.5" x2="2.8" y2="15.5"/><line x1="19" y1="15.5" x2="21.2" y2="15.5"/></symbol><symbol id="i-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="3" x2="9" y2="8"/><line x1="15" y1="3" x2="15" y2="8"/><rect x="7" y="8" width="10" height="6" rx="2"/><line x1="12" y1="14" x2="12" y2="20.5"/></symbol><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6472"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1160" fill="#f7f8fb"/>
+<text x="40" y="34" font-size="25" font-weight="800" fill="#131722" font-family="-apple-system,Segoe UI,ui-sans-serif,sans-serif">TenantForge — Platform Architecture</text>
+<text x="40" y="56" font-size="13" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">multi-tenant platform-engineering reference · every colored lane is a real, separately-verified layer · see docs/roadmap.md for exact verification commands</text>
+<g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">
+<circle cx="1170" cy="23" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/>
+<polyline points="1167.6,23 1169.4,24.8 1172.6,20.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1181" y="27" font-size="10.5" fill="#5b6472">verified end-to-end</text>
+<circle cx="1315" cy="23" r="5.5" fill="#c9922f" stroke="#ffffff" stroke-width="1.2"/>
+<path d="M1315,19.4 A3.6 3.6 0 0 1 1315,26.6 Z" fill="#ffffff"/>
+<text x="1326" y="27" font-size="10.5" fill="#5b6472">partially verified</text>
+<circle cx="1460" cy="23" r="5.5" fill="#ffffff" stroke="#9aa2b1" stroke-width="1.3"/>
+<text x="1471" y="27" font-size="10.5" fill="#5b6472">wired, not applied</text>
+</g>
+<g class="lane" data-lane="local"><rect class="lane-hit" x="40" y="112" width="1520" height="124" rx="10" fill="#eef0f3" stroke="#d7dbe4" stroke-width="1.2"/><rect x="40" y="112" width="6" height="124" rx="3" fill="#52606d"/><text x="62" y="134" font-size="12" font-weight="700" letter-spacing="1.2" fill="#52606d" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">TIER 1 — LOCAL DEV ($0)</text><g class="chip" tabindex="0" data-id="local-0" data-cat="local" data-status="done" data-title="kind cluster" data-sub="local k8s, $0" data-detail="Every phase this session was proven here first. Most recently: tenantforge-aiops, stood up and torn down to verify the Alertmanager webhook receiver."><rect class="chip-box" x="62" y="156" width="178" height="64" rx="7" fill="#ffffff" stroke="#52606d" stroke-width="1.4" stroke-dasharray="none"/><rect x="72" y="168" width="26" height="26" rx="6" fill="#52606d"/><use href="#i-cluster" x="75" y="171" width="20" height="20" color="#ffffff"/><circle cx="229" cy="167" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="226.6,167 228.4,168.8 231.6,164.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="106" y="183" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">kind cluster</text><text x="106" y="198" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">local k8s, $0</text></g><g class="chip" tabindex="0" data-id="local-1" data-cat="local" data-status="done" data-title="sample-service" data-sub="Go API + Helm" data-detail="Go notes API, distroless image (~13MB). Helm chart verified end-to-end on local kind (Phase 2)."><rect class="chip-box" x="254" y="156" width="178" height="64" rx="7" fill="#ffffff" stroke="#52606d" stroke-width="1.4" stroke-dasharray="none"/><rect x="264" y="168" width="26" height="26" rx="6" fill="#52606d"/><use href="#i-helm" x="267" y="171" width="20" height="20" color="#ffffff"/><circle cx="421" cy="167" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="418.6,167 420.4,168.8 423.6,164.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="298" y="183" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">sample-service</text><text x="298" y="198" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Go API + Helm</text></g><g class="chip" tabindex="0" data-id="local-2" data-cat="local" data-status="done" data-title="ArgoCD (local)" data-sub="GitOps sync" data-detail="App-of-apps verified: a fresh kind cluster auto-discovered and synced sample-service from git, reaching Healthy and serving traffic."><rect class="chip-box" x="446" y="156" width="178" height="64" rx="7" fill="#ffffff" stroke="#52606d" stroke-width="1.4" stroke-dasharray="none"/><rect x="456" y="168" width="26" height="26" rx="6" fill="#52606d"/><use href="#i-sync" x="459" y="171" width="20" height="20" color="#ffffff"/><circle cx="613" cy="167" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="610.6,167 612.4,168.8 615.6,164.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="490" y="183" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">ArgoCD (local)</text><text x="490" y="198" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">GitOps sync</text></g><g class="chip" tabindex="0" data-id="local-3" data-cat="local" data-status="done" data-title="Observability" data-sub="OTel+Prom+Grafana" data-detail="OTel collector -&gt; Prometheus -&gt; Grafana, verified with honorLabels: true so job=sample-service survives the collector re-export."><rect class="chip-box" x="638" y="156" width="178" height="64" rx="7" fill="#ffffff" stroke="#52606d" stroke-width="1.4" stroke-dasharray="none"/><rect x="648" y="168" width="26" height="26" rx="6" fill="#52606d"/><use href="#i-trend" x="651" y="171" width="20" height="20" color="#ffffff"/><circle cx="805" cy="167" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="802.6,167 804.4,168.8 807.6,164.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="682" y="183" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Observability</text><text x="682" y="198" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">OTel+Prom+Grafana</text></g><g class="chip" tabindex="0" data-id="local-4" data-cat="local" data-status="done" data-title="Backstage" data-sub="create-app, local" data-detail="Verified by driving the real UI: filled the golden-path form, ran the task, confirmed all 15 templated files wrote correctly."><rect class="chip-box" x="830" y="156" width="178" height="64" rx="7" fill="#ffffff" stroke="#52606d" stroke-width="1.4" stroke-dasharray="none"/><rect x="840" y="168" width="26" height="26" rx="6" fill="#52606d"/><use href="#i-template" x="843" y="171" width="20" height="20" color="#ffffff"/><circle cx="997" cy="167" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="994.6,167 996.4,168.8 999.6,164.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="874" y="183" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Backstage</text><text x="874" y="198" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">create-app, local</text></g><g class="chip" tabindex="0" data-id="local-5" data-cat="local" data-status="done" data-title="Gatekeeper" data-sub="+ NetworkPolicy" data-detail="3 ConstraintTemplates + NetworkPolicy verified on a Calico-enabled kind cluster: cross-namespace traffic blocked, a non-compliant pod rejected."><rect class="chip-box" x="1022" y="156" width="178" height="64" rx="7" fill="#ffffff" stroke="#52606d" stroke-width="1.4" stroke-dasharray="none"/><rect x="1032" y="168" width="26" height="26" rx="6" fill="#52606d"/><use href="#i-shieldcheck" x="1035" y="171" width="20" height="20" color="#ffffff"/><circle cx="1189" cy="167" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="1186.6,167 1188.4,168.8 1191.6,164.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="1066" y="183" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Gatekeeper</text><text x="1066" y="198" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">+ NetworkPolicy</text></g><g class="chip" tabindex="0" data-id="local-6" data-cat="local" data-status="done" data-title="k6 load test" data-sub="expected + stress" data-detail="Stress run (100 VUs) pushed p95 to 2.4s, breaching the 500ms SLO — and SampleServiceHighLatency was confirmed pending in Prometheus mid-run."><rect class="chip-box" x="1214" y="156" width="178" height="64" rx="7" fill="#ffffff" stroke="#52606d" stroke-width="1.4" stroke-dasharray="none"/><rect x="1224" y="168" width="26" height="26" rx="6" fill="#52606d"/><use href="#i-gauge" x="1227" y="171" width="20" height="20" color="#ffffff"/><circle cx="1381" cy="167" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="1378.6,167 1380.4,168.8 1383.6,164.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="1258" y="183" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">k6 load test</text><text x="1258" y="198" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">expected + stress</text></g></g>
+<g class="lane" data-lane="github"><rect class="lane-hit" x="40" y="256" width="1520" height="124" rx="10" fill="#f1eefb" stroke="#d7dbe4" stroke-width="1.2"/><rect x="40" y="256" width="6" height="124" rx="3" fill="#6653d6"/><text x="62" y="278" font-size="12" font-weight="700" letter-spacing="1.2" fill="#6653d6" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">TIER 2 — GITHUB (FREE)</text><g class="chip" tabindex="0" data-id="github-0" data-cat="github" data-status="done" data-title="GitHub Actions" data-sub="build + test" data-detail="ci.yml live and green: build/test -&gt; Trivy -&gt; Syft -&gt; GHCR push -&gt; cosign sign + SBOM attest, all verified for real."><rect class="chip-box" x="62" y="300" width="178" height="64" rx="7" fill="#ffffff" stroke="#6653d6" stroke-width="1.4" stroke-dasharray="none"/><rect x="72" y="312" width="26" height="26" rx="6" fill="#6653d6"/><use href="#i-play" x="75" y="315" width="20" height="20" color="#ffffff"/><circle cx="229" cy="311" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="226.6,311 228.4,312.8 231.6,308.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="106" y="327" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">GitHub Actions</text><text x="106" y="342" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">build + test</text></g><g class="chip" tabindex="0" data-id="github-1" data-cat="github" data-status="done" data-title="CodeQL" data-sub="SAST" data-detail="codeql.yml runs static analysis on every push."><rect class="chip-box" x="254" y="300" width="178" height="64" rx="7" fill="#ffffff" stroke="#6653d6" stroke-width="1.4" stroke-dasharray="none"/><rect x="264" y="312" width="26" height="26" rx="6" fill="#6653d6"/><use href="#i-shieldcheck" x="267" y="315" width="20" height="20" color="#ffffff"/><circle cx="421" cy="311" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="418.6,311 420.4,312.8 423.6,308.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="298" y="327" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">CodeQL</text><text x="298" y="342" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">SAST</text></g><g class="chip" tabindex="0" data-id="github-2" data-cat="github" data-status="done" data-title="Trivy" data-sub="image scan" data-detail="Container image scan step inside the supply-chain pipeline."><rect class="chip-box" x="446" y="300" width="178" height="64" rx="7" fill="#ffffff" stroke="#6653d6" stroke-width="1.4" stroke-dasharray="none"/><rect x="456" y="312" width="26" height="26" rx="6" fill="#6653d6"/><use href="#i-shieldscan" x="459" y="315" width="20" height="20" color="#ffffff"/><circle cx="613" cy="311" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="610.6,311 612.4,312.8 615.6,308.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="490" y="327" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Trivy</text><text x="490" y="342" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">image scan</text></g><g class="chip" tabindex="0" data-id="github-3" data-cat="github" data-status="done" data-title="Syft + cosign" data-sub="SBOM + sign" data-detail="SBOM generated with Syft, image signed with cosign — the signature was independently verified against Rekor with cosign verify."><rect class="chip-box" x="638" y="300" width="178" height="64" rx="7" fill="#ffffff" stroke="#6653d6" stroke-width="1.4" stroke-dasharray="none"/><rect x="648" y="312" width="26" height="26" rx="6" fill="#6653d6"/><use href="#i-seal" x="651" y="315" width="20" height="20" color="#ffffff"/><circle cx="805" cy="311" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="802.6,311 804.4,312.8 807.6,308.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="682" y="327" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Syft + cosign</text><text x="682" y="342" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">SBOM + sign</text></g><g class="chip" tabindex="0" data-id="github-4" data-cat="github" data-status="done" data-title="GHCR" data-sub="image registry" data-detail="Published image confirmed publicly pullable from GHCR."><rect class="chip-box" x="830" y="300" width="178" height="64" rx="7" fill="#ffffff" stroke="#6653d6" stroke-width="1.4" stroke-dasharray="none"/><rect x="840" y="312" width="26" height="26" rx="6" fill="#6653d6"/><use href="#i-package" x="843" y="315" width="20" height="20" color="#ffffff"/><circle cx="997" cy="311" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="994.6,311 996.4,312.8 999.6,308.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="874" y="327" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">GHCR</text><text x="874" y="342" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">image registry</text></g><g class="chip" tabindex="0" data-id="github-5" data-cat="github" data-status="done" data-title="GitOps manifests" data-sub="app-of-apps" data-detail="platform/argocd app-of-apps. Needed ServerSideApply=true — kube-prometheus-stack's ~830KB CRDs exceed kubectl's client-side annotation limit."><rect class="chip-box" x="1022" y="300" width="178" height="64" rx="7" fill="#ffffff" stroke="#6653d6" stroke-width="1.4" stroke-dasharray="none"/><rect x="1032" y="312" width="26" height="26" rx="6" fill="#6653d6"/><use href="#i-sync" x="1035" y="315" width="20" height="20" color="#ffffff"/><circle cx="1189" cy="311" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="1186.6,311 1188.4,312.8 1191.6,308.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="1066" y="327" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">GitOps manifests</text><text x="1066" y="342" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">app-of-apps</text></g></g>
+<g class="lane" data-lane="azure"><rect class="lane-hit" x="40" y="414" width="1520" height="124" rx="10" fill="#eaf1fb" stroke="#d7dbe4" stroke-width="1.2"/><rect x="40" y="414" width="6" height="124" rx="3" fill="#3172c9"/><text x="62" y="436" font-size="12" font-weight="700" letter-spacing="1.2" fill="#3172c9" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">TIER 3A — AZURE (WIRED, NOT APPLIED)</text><g class="chip" tabindex="0" data-id="azure-0" data-cat="azure" data-status="wired" data-title="Terraform" data-sub="network→AKS→KV" data-detail="infra/terraform/azure wires resource_group -&gt; network -&gt; aks -&gt; keyvault -&gt; monitoring -&gt; policy. terraform validate passes; never applied."><rect class="chip-box" x="62" y="458" width="178" height="64" rx="7" fill="#ffffff" stroke="#3172c9" stroke-width="1.4" stroke-dasharray="6,4"/><rect x="72" y="470" width="26" height="26" rx="6" fill="#3172c9"/><use href="#i-layers" x="75" y="473" width="20" height="20" color="#ffffff"/><circle cx="229" cy="469" r="5.5" fill="#ffffff" stroke="#9aa2b1" stroke-width="1.3"/><text x="106" y="485" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Terraform</text><text x="106" y="500" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">network→AKS→KV</text></g><g class="chip" tabindex="0" data-id="azure-1" data-cat="azure" data-status="wired" data-title="VNet" data-sub="subnets, NSGs" data-detail="Subnets and NSGs are defined in Terraform, not provisioned."><rect class="chip-box" x="254" y="458" width="178" height="64" rx="7" fill="#ffffff" stroke="#3172c9" stroke-width="1.4" stroke-dasharray="6,4"/><rect x="264" y="470" width="26" height="26" rx="6" fill="#3172c9"/><use href="#i-network" x="267" y="473" width="20" height="20" color="#ffffff"/><circle cx="421" cy="469" r="5.5" fill="#ffffff" stroke="#9aa2b1" stroke-width="1.3"/><text x="298" y="485" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">VNet</text><text x="298" y="500" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">subnets, NSGs</text></g><g class="chip" tabindex="0" data-id="azure-2" data-cat="azure" data-status="wired" data-title="AKS cluster" data-sub="not applied" data-detail="Primary compute target for the landing zone. Real cost — a terraform apply here is a deliberate decision, always asked before running."><rect class="chip-box" x="446" y="458" width="178" height="64" rx="7" fill="#ffffff" stroke="#3172c9" stroke-width="1.4" stroke-dasharray="6,4"/><rect x="456" y="470" width="26" height="26" rx="6" fill="#3172c9"/><use href="#i-cluster" x="459" y="473" width="20" height="20" color="#ffffff"/><circle cx="613" cy="469" r="5.5" fill="#ffffff" stroke="#9aa2b1" stroke-width="1.3"/><text x="490" y="485" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">AKS cluster</text><text x="490" y="500" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">not applied</text></g><g class="chip" tabindex="0" data-id="azure-3" data-cat="azure" data-status="wired" data-title="Key Vault" data-sub="secrets" data-detail="Workload Identity + RBAC wired in Terraform, not yet live."><rect class="chip-box" x="638" y="458" width="178" height="64" rx="7" fill="#ffffff" stroke="#3172c9" stroke-width="1.4" stroke-dasharray="6,4"/><rect x="648" y="470" width="26" height="26" rx="6" fill="#3172c9"/><use href="#i-key" x="651" y="473" width="20" height="20" color="#ffffff"/><circle cx="805" cy="469" r="5.5" fill="#ffffff" stroke="#9aa2b1" stroke-width="1.3"/><text x="682" y="485" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Key Vault</text><text x="682" y="500" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">secrets</text></g><g class="chip" tabindex="0" data-id="azure-4" data-cat="azure" data-status="wired" data-title="Azure SQL" data-sub="serverless" data-detail="Serverless tier chosen for the cost-tier discipline set out in ADR-0001."><rect class="chip-box" x="830" y="458" width="178" height="64" rx="7" fill="#ffffff" stroke="#3172c9" stroke-width="1.4" stroke-dasharray="6,4"/><rect x="840" y="470" width="26" height="26" rx="6" fill="#3172c9"/><use href="#i-db" x="843" y="473" width="20" height="20" color="#ffffff"/><circle cx="997" cy="469" r="5.5" fill="#ffffff" stroke="#9aa2b1" stroke-width="1.3"/><text x="874" y="485" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Azure SQL</text><text x="874" y="500" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">serverless</text></g><g class="chip" tabindex="0" data-id="azure-5" data-cat="azure" data-status="wired" data-title="Front Door" data-sub="+ WAF" data-detail="Edge/ingress layer — cloud-specific, waits on the real apply like the rest of this lane."><rect class="chip-box" x="1022" y="458" width="178" height="64" rx="7" fill="#ffffff" stroke="#3172c9" stroke-width="1.4" stroke-dasharray="6,4"/><rect x="1032" y="470" width="26" height="26" rx="6" fill="#3172c9"/><use href="#i-globe" x="1035" y="473" width="20" height="20" color="#ffffff"/><circle cx="1189" cy="469" r="5.5" fill="#ffffff" stroke="#9aa2b1" stroke-width="1.3"/><text x="1066" y="485" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Front Door</text><text x="1066" y="500" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">+ WAF</text></g><g class="chip" tabindex="0" data-id="azure-6" data-cat="azure" data-status="wired" data-title="Entra ID" data-sub="workload identity" data-detail="Workload Identity Federation planned — same OIDC pattern already proven for real on AWS via IRSA."><rect class="chip-box" x="1214" y="458" width="178" height="64" rx="7" fill="#ffffff" stroke="#3172c9" stroke-width="1.4" stroke-dasharray="6,4"/><rect x="1224" y="470" width="26" height="26" rx="6" fill="#3172c9"/><use href="#i-id" x="1227" y="473" width="20" height="20" color="#ffffff"/><circle cx="1381" cy="469" r="5.5" fill="#ffffff" stroke="#9aa2b1" stroke-width="1.3"/><text x="1258" y="485" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Entra ID</text><text x="1258" y="500" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">workload identity</text></g></g>
+<g class="lane" data-lane="aws"><rect class="lane-hit" x="40" y="558" width="1520" height="124" rx="10" fill="#fbf1e6" stroke="#d7dbe4" stroke-width="1.2"/><rect x="40" y="558" width="6" height="124" rx="3" fill="#d98a35"/><text x="62" y="580" font-size="12" font-weight="700" letter-spacing="1.2" fill="#d98a35" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">TIER 3B — AWS (APPLIED &amp; VERIFIED LIVE, THEN DESTROYED)</text><g class="chip" tabindex="0" data-id="aws-0" data-cat="aws" data-status="done" data-title="Terraform" data-sub="vpc→eks→alb→iam" data-detail="infra/terraform/aws: vpc -&gt; eks -&gt; alb -&gt; iam, applied for real against AWS eu-north-1 via Terraform Cloud workspace tenantforge-aws-dev."><rect class="chip-box" x="62" y="602" width="178" height="64" rx="7" fill="#ffffff" stroke="#d98a35" stroke-width="1.4" stroke-dasharray="none"/><rect x="72" y="614" width="26" height="26" rx="6" fill="#d98a35"/><use href="#i-layers" x="75" y="617" width="20" height="20" color="#ffffff"/><circle cx="229" cy="613" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="226.6,613 228.4,614.8 231.6,610.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="106" y="629" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Terraform</text><text x="106" y="644" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">vpc→eks→alb→iam</text></g><g class="chip" tabindex="0" data-id="aws-1" data-cat="aws" data-status="done" data-title="VPC" data-sub="subnets, SGs" data-detail="VPC + NAT gateway + subnets + security groups, provisioned live."><rect class="chip-box" x="254" y="602" width="178" height="64" rx="7" fill="#ffffff" stroke="#d98a35" stroke-width="1.4" stroke-dasharray="none"/><rect x="264" y="614" width="26" height="26" rx="6" fill="#d98a35"/><use href="#i-network" x="267" y="617" width="20" height="20" color="#ffffff"/><circle cx="421" cy="613" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="418.6,613 420.4,614.8 423.6,610.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="298" y="629" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">VPC</text><text x="298" y="644" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">subnets, SGs</text></g><g class="chip" tabindex="0" data-id="aws-2" data-cat="aws" data-status="done" data-title="EKS cluster" data-sub="eu-north-1" data-detail="kubectl get nodes showed 1 Ready node on the live cluster."><rect class="chip-box" x="446" y="602" width="178" height="64" rx="7" fill="#ffffff" stroke="#d98a35" stroke-width="1.4" stroke-dasharray="none"/><rect x="456" y="614" width="26" height="26" rx="6" fill="#d98a35"/><use href="#i-cluster" x="459" y="617" width="20" height="20" color="#ffffff"/><circle cx="613" cy="613" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="610.6,613 612.4,614.8 615.6,610.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="490" y="629" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">EKS cluster</text><text x="490" y="644" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">eu-north-1</text></g><g class="chip" tabindex="0" data-id="aws-3" data-cat="aws" data-status="done" data-title="IAM / IRSA" data-sub="OIDC federation" data-detail="IRSA role for the AWS Load Balancer Controller wired via OIDC — no static cloud secrets."><rect class="chip-box" x="638" y="602" width="178" height="64" rx="7" fill="#ffffff" stroke="#d98a35" stroke-width="1.4" stroke-dasharray="none"/><rect x="648" y="614" width="26" height="26" rx="6" fill="#d98a35"/><use href="#i-id" x="651" y="617" width="20" height="20" color="#ffffff"/><circle cx="805" cy="613" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="802.6,613 804.4,614.8 807.6,610.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="682" y="629" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">IAM / IRSA</text><text x="682" y="644" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">OIDC federation</text></g><g class="chip" tabindex="0" data-id="aws-4" data-cat="aws" data-status="partial" data-title="ALB Ingress" data-sub="controller wired" data-detail="IRSA role exists, but the controller itself isn't installed via Helm/ArgoCD yet — same definitions from platform/argocd still need to target this cluster."><rect class="chip-box" x="830" y="602" width="178" height="64" rx="7" fill="#ffffff" stroke="#d98a35" stroke-width="1.4" stroke-dasharray="none"/><rect x="840" y="614" width="26" height="26" rx="6" fill="#d98a35"/><use href="#i-globe" x="843" y="617" width="20" height="20" color="#ffffff"/><circle cx="997" cy="613" r="5.5" fill="#c9922f" stroke="#ffffff" stroke-width="1.2"/><path d="M997,609.4 A3.6 3.6 0 0 1 997,616.6 Z" fill="#ffffff"/><text x="874" y="629" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">ALB Ingress</text><text x="874" y="644" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">controller wired</text></g></g>
+<g class="lane" data-lane="obs"><rect class="lane-hit" x="40" y="716" width="1520" height="124" rx="10" fill="#e9f6f8" stroke="#d7dbe4" stroke-width="1.2"/><rect x="40" y="716" width="6" height="124" rx="3" fill="#1893a8"/><text x="62" y="738" font-size="12" font-weight="700" letter-spacing="1.2" fill="#1893a8" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">OBSERVABILITY (CROSS-CLOUD)</text><g class="chip" tabindex="0" data-id="obs-0" data-cat="obs" data-status="done" data-title="OTel Collector" data-sub="scrapes metrics" data-detail="Scrapes sample-service and re-exposes its metrics with job/instance round-tripped intact."><rect class="chip-box" x="62" y="760" width="178" height="64" rx="7" fill="#ffffff" stroke="#1893a8" stroke-width="1.4" stroke-dasharray="none"/><rect x="72" y="772" width="26" height="26" rx="6" fill="#1893a8"/><use href="#i-funnel" x="75" y="775" width="20" height="20" color="#ffffff"/><circle cx="229" cy="771" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="226.6,771 228.4,772.8 231.6,768.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="106" y="787" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">OTel Collector</text><text x="106" y="802" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">scrapes metrics</text></g><g class="chip" tabindex="0" data-id="obs-1" data-cat="obs" data-status="done" data-title="Prometheus" data-sub="kube-prom-stack" data-detail="kube-prometheus-stack; picks up the collector via a ServiceMonitor with honorLabels: true."><rect class="chip-box" x="254" y="760" width="178" height="64" rx="7" fill="#ffffff" stroke="#1893a8" stroke-width="1.4" stroke-dasharray="none"/><rect x="264" y="772" width="26" height="26" rx="6" fill="#1893a8"/><use href="#i-trend" x="267" y="775" width="20" height="20" color="#ffffff"/><circle cx="421" cy="771" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="418.6,771 420.4,772.8 423.6,768.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="298" y="787" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Prometheus</text><text x="298" y="802" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">kube-prom-stack</text></g><g class="chip" tabindex="0" data-id="obs-2" data-cat="obs" data-status="done" data-title="Grafana" data-sub="auto dashboards" data-detail="Dashboard auto-provisioned via the chart's sidecar, confirmed rendering real traffic data."><rect class="chip-box" x="446" y="760" width="178" height="64" rx="7" fill="#ffffff" stroke="#1893a8" stroke-width="1.4" stroke-dasharray="none"/><rect x="456" y="772" width="26" height="26" rx="6" fill="#1893a8"/><use href="#i-panels" x="459" y="775" width="20" height="20" color="#ffffff"/><circle cx="613" cy="771" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="610.6,771 612.4,772.8 615.6,768.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="490" y="787" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Grafana</text><text x="490" y="802" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">auto dashboards</text></g><g class="chip" tabindex="0" data-id="obs-3" data-cat="obs" data-status="done" data-title="Alertmanager" data-sub="routes alerts" data-detail="Routes the three SampleService* alerts to the ai-ops-assistant webhook receiver via alertmanager.config."><rect class="chip-box" x="638" y="760" width="178" height="64" rx="7" fill="#ffffff" stroke="#1893a8" stroke-width="1.4" stroke-dasharray="none"/><rect x="648" y="772" width="26" height="26" rx="6" fill="#1893a8"/><use href="#i-bell" x="651" y="775" width="20" height="20" color="#ffffff"/><circle cx="805" cy="771" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="802.6,771 804.4,772.8 807.6,768.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="682" y="787" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Alertmanager</text><text x="682" y="802" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">routes alerts</text></g><g class="chip" tabindex="0" data-id="obs-4" data-cat="obs" data-status="done" data-title="SLO rules" data-sub="+ runbooks" data-detail="3 alerts — HighErrorRate, HighLatency, Down — each linking a runbook in docs/runbooks/."><rect class="chip-box" x="830" y="760" width="178" height="64" rx="7" fill="#ffffff" stroke="#1893a8" stroke-width="1.4" stroke-dasharray="none"/><rect x="840" y="772" width="26" height="26" rx="6" fill="#1893a8"/><use href="#i-book" x="843" y="775" width="20" height="20" color="#ffffff"/><circle cx="997" cy="771" r="5.5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.2"/><polyline points="994.6,771 996.4,772.8 999.6,768.8" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text x="874" y="787" font-size="12.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">SLO rules</text><text x="874" y="802" font-size="10" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">+ runbooks</text></g></g>
+<rect x="40" y="874" width="1520" height="190" rx="10" fill="#ffffff" stroke="#d7dbe4" stroke-width="1.2"/>
+<text x="62" y="896" font-size="12" font-weight="700" letter-spacing="1.2" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">CROSS-CUTTING CONCERNS</text>
+<g class="lane" data-lane="security">
+<rect class="lane-hit" x="50.0" y="908" width="345.0" height="144" rx="8" fill="#fbecec" stroke="#d7dbe4" stroke-width="1"/>
+<text x="64.0" y="928" font-size="11" font-weight="700" letter-spacing="1" fill="#c94b4b" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">SECURITY</text>
+<g class="chip" tabindex="0" data-id="security-0" data-cat="security" data-status="done" data-title="NetworkPolicy" data-sub="Calico, tenant iso" data-detail="A Calico-enabled kind cluster confirmed cross-namespace traffic to sample-service blocked, while same-namespace and the OTel scrape stayed allowed.">
+<rect class="chip-box" x="62.0" y="936" width="321.0" height="50" rx="6" fill="#ffffff" stroke="#c94b4b" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="70.0" y="945" width="22" height="22" rx="5" fill="#c94b4b"/>
+<use href="#i-lock" x="72.5" y="947.5" width="17" height="17" color="#ffffff"/>
+<circle cx="373.0" cy="946" r="5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.1"/>
+<polyline points="370.9,946 372.5,947.6 375.3,944" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="100.0" y="957" font-size="11.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">NetworkPolicy</text>
+<text x="100.0" y="971" font-size="9.3" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Calico, tenant iso</text>
+</g>
+<g class="chip" tabindex="0" data-id="security-1" data-cat="security" data-status="done" data-title="OPA/Gatekeeper" data-sub="3 constraints" data-detail="Found and fixed a real Rego bug: required - provided silently no-ops when subtracting a set from an array. opa test now catches it in milliseconds.">
+<rect class="chip-box" x="62.0" y="996" width="321.0" height="50" rx="6" fill="#ffffff" stroke="#c94b4b" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="70.0" y="1005" width="22" height="22" rx="5" fill="#c94b4b"/>
+<use href="#i-shieldcheck" x="72.5" y="1007.5" width="17" height="17" color="#ffffff"/>
+<circle cx="373.0" cy="1006" r="5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.1"/>
+<polyline points="370.9,1006 372.5,1007.6 375.3,1004" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="100.0" y="1017" font-size="11.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">OPA/Gatekeeper</text>
+<text x="100.0" y="1031" font-size="9.3" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">3 constraints</text>
+</g>
+</g>
+<g class="lane" data-lane="finops">
+<rect class="lane-hit" x="435.0" y="908" width="345.0" height="144" rx="8" fill="#eaf7f0" stroke="#d7dbe4" stroke-width="1"/>
+<text x="449.0" y="928" font-size="11" font-weight="700" letter-spacing="1" fill="#2f9e5c" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">FINOPS</text>
+<g class="chip" tabindex="0" data-id="finops-0" data-cat="finops" data-status="done" data-title="Orphan cleanup" data-sub="bot, $0 found" data-detail="Ran for real against the live AWS account post-teardown — found zero orphans, cross-checked against raw aws CLI calls.">
+<rect class="chip-box" x="447.0" y="936" width="321.0" height="50" rx="6" fill="#ffffff" stroke="#2f9e5c" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="455.0" y="945" width="22" height="22" rx="5" fill="#2f9e5c"/>
+<use href="#i-broom" x="457.5" y="947.5" width="17" height="17" color="#ffffff"/>
+<circle cx="758.0" cy="946" r="5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.1"/>
+<polyline points="755.9,946 757.5,947.6 760.3,944" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="485.0" y="957" font-size="11.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Orphan cleanup</text>
+<text x="485.0" y="971" font-size="9.3" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">bot, $0 found</text>
+</g>
+<g class="chip" tabindex="0" data-id="finops-1" data-cat="finops" data-status="partial" data-title="Cost dashboards" data-sub="Cost Explorer" data-detail="Pulled real AWS Cost Explorer data — the 60 days spanning Phase 1b's apply/verify/destroy cycle show $0.00 total spend. No scheduled run yet.">
+<rect class="chip-box" x="447.0" y="996" width="321.0" height="50" rx="6" fill="#ffffff" stroke="#2f9e5c" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="455.0" y="1005" width="22" height="22" rx="5" fill="#2f9e5c"/>
+<use href="#i-dollar" x="457.5" y="1007.5" width="17" height="17" color="#ffffff"/>
+<circle cx="758.0" cy="1006" r="5" fill="#c9922f" stroke="#ffffff" stroke-width="1.1"/>
+<path d="M758.0,1002.8 A3.2 3.2 0 0 1 758.0,1009.2 Z" fill="#ffffff"/>
+<text x="485.0" y="1017" font-size="11.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Cost dashboards</text>
+<text x="485.0" y="1031" font-size="9.3" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Cost Explorer</text>
+</g>
+</g>
+<g class="lane" data-lane="platform">
+<rect class="lane-hit" x="820.0" y="908" width="345.0" height="144" rx="8" fill="#faf3e6" stroke="#d7dbe4" stroke-width="1"/>
+<text x="834.0" y="928" font-size="11" font-weight="700" letter-spacing="1" fill="#b8862f" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">PLATFORM / IDP</text>
+<g class="chip" tabindex="0" data-id="platform-0" data-cat="platform" data-status="done" data-title="Backstage" data-sub="real instance" data-detail="A real @backstage/create-app instance (SQLite), not a mockup.">
+<rect class="chip-box" x="832.0" y="936" width="321.0" height="50" rx="6" fill="#ffffff" stroke="#b8862f" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="840.0" y="945" width="22" height="22" rx="5" fill="#b8862f"/>
+<use href="#i-template" x="842.5" y="947.5" width="17" height="17" color="#ffffff"/>
+<circle cx="1143.0" cy="946" r="5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.1"/>
+<polyline points="1140.9,946 1142.5,947.6 1145.3,944" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="870.0" y="957" font-size="11.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Backstage</text>
+<text x="870.0" y="971" font-size="9.3" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">real instance</text>
+</g>
+<g class="chip" tabindex="0" data-id="platform-1" data-cat="platform" data-status="done" data-title="tenant-service" data-sub="golden path" data-detail="Scaffolds a Go HTTP service + Dockerfile + Helm chart matching sample-service's own distroless/non-root/NetworkPolicy pattern.">
+<rect class="chip-box" x="832.0" y="996" width="321.0" height="50" rx="6" fill="#ffffff" stroke="#b8862f" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="840.0" y="1005" width="22" height="22" rx="5" fill="#b8862f"/>
+<use href="#i-package" x="842.5" y="1007.5" width="17" height="17" color="#ffffff"/>
+<circle cx="1143.0" cy="1006" r="5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.1"/>
+<polyline points="1140.9,1006 1142.5,1007.6 1145.3,1004" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="870.0" y="1017" font-size="11.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">tenant-service</text>
+<text x="870.0" y="1031" font-size="9.3" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">golden path</text>
+</g>
+</g>
+<g class="lane" data-lane="aiops">
+<rect class="lane-hit" x="1205.0" y="908" width="345.0" height="144" rx="8" fill="#fbecf2" stroke="#d7dbe4" stroke-width="1"/>
+<text x="1219.0" y="928" font-size="11" font-weight="700" letter-spacing="1" fill="#d1447a" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">AI OPS</text>
+<g class="chip" tabindex="0" data-id="aiops-0" data-cat="aiops" data-status="done" data-title="webhook receiver" data-sub="Alertmanager→HTTP" data-detail="Verified today: scaled sample-service to 0, and Alertmanager itself — not a manual curl — routed the real, firing SampleServiceDown alert here.">
+<rect class="chip-box" x="1217.0" y="936" width="321.0" height="50" rx="6" fill="#ffffff" stroke="#d1447a" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="1225.0" y="945" width="22" height="22" rx="5" fill="#d1447a"/>
+<use href="#i-plug" x="1227.5" y="947.5" width="17" height="17" color="#ffffff"/>
+<circle cx="1528.0" cy="946" r="5" fill="#2f9e5c" stroke="#ffffff" stroke-width="1.1"/>
+<polyline points="1525.9,946 1527.5,947.6 1530.3,944" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1255.0" y="957" font-size="11.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">webhook receiver</text>
+<text x="1255.0" y="971" font-size="9.3" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Alertmanager→HTTP</text>
+</g>
+<g class="chip" tabindex="0" data-id="aiops-1" data-cat="aiops" data-status="partial" data-title="triage.py" data-sub="+ Claude API" data-detail="Context-gathering (runbook + git history + Prometheus value) is verified for real. The Claude API call is structural-only — no ANTHROPIC_API_KEY here.">
+<rect class="chip-box" x="1217.0" y="996" width="321.0" height="50" rx="6" fill="#ffffff" stroke="#d1447a" stroke-width="1.3" stroke-dasharray="none"/>
+<rect x="1225.0" y="1005" width="22" height="22" rx="5" fill="#d1447a"/>
+<use href="#i-robot" x="1227.5" y="1007.5" width="17" height="17" color="#ffffff"/>
+<circle cx="1528.0" cy="1006" r="5" fill="#c9922f" stroke="#ffffff" stroke-width="1.1"/>
+<path d="M1528.0,1002.8 A3.2 3.2 0 0 1 1528.0,1009.2 Z" fill="#ffffff"/>
+<text x="1255.0" y="1017" font-size="11.5" font-weight="600" fill="#131722" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">triage.py</text>
+<text x="1255.0" y="1031" font-size="9.3" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">+ Claude API</text>
+</g>
+</g>
+<path d="M1111.0,364 C1111.0,386 535.0,436 535.0,458" fill="none" stroke="#f7f8fb" stroke-width="5.5"/><path class="flow-line" d="M1111.0,364 C1111.0,386 535.0,436 535.0,458" fill="none" stroke="#5b6472" stroke-width="1.6" marker-end="url(#arrow)"/><rect x="968.0" y="377" width="76.4" height="15" fill="#f7f8fb"/><text x="971.0" y="388" font-size="10.5" fill="#5b6472" font-style="italic" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">ArgoCD sync</text>
+<path d="M1111.0,364 C1111.0,454 595.0,512 595.0,602" fill="none" stroke="#f7f8fb" stroke-width="5.5"/><path class="flow-line" d="M1111.0,364 C1111.0,454 595.0,512 595.0,602" fill="none" stroke="#5b6472" stroke-width="1.6" marker-end="url(#arrow)"/><rect x="602.0" y="539" width="76.4" height="15" fill="#f7f8fb"/><text x="605.0" y="550" font-size="10.5" fill="#5b6472" font-style="italic" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">ArgoCD sync</text>
+<path d="M535.0,666 C535.0,688 151.0,738 151.0,760" fill="none" stroke="#f7f8fb" stroke-width="5.5"/><path class="flow-line" d="M535.0,666 C535.0,688 151.0,738 151.0,760" fill="none" stroke="#5b6472" stroke-width="1.6" marker-end="url(#arrow)"/><rect x="437.0" y="679" width="50.800000000000004" height="15" fill="#f7f8fb"/><text x="440.0" y="690" font-size="10.5" fill="#5b6472" font-style="italic" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">scrapes</text>
+<path d="M919.0,824 C919.0,846 1377.5,914 1377.5,936" fill="none" stroke="#f7f8fb" stroke-width="5.5"/><path class="flow-line" d="M919.0,824 C919.0,846 1377.5,914 1377.5,936" fill="none" stroke="#5b6472" stroke-width="1.6" marker-end="url(#arrow)"/><rect x="886.0" y="837" width="76.4" height="15" fill="#f7f8fb"/><text x="889.0" y="848" font-size="10.5" fill="#5b6472" font-style="italic" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">alert fires</text>
+<path d="M595.0,666 C595.0,756 607.5,846 607.5,936" fill="none" stroke="#f7f8fb" stroke-width="5.5"/><path d="M595.0,666 C595.0,756 607.5,846 607.5,936" fill="none" stroke="#5b6472" stroke-width="1.6" stroke-dasharray="7,5" marker-end="url(#arrow)"/><rect x="534.5" y="871" width="70.0" height="15" fill="#f7f8fb"/><text x="537.5" y="882" font-size="10.5" fill="#5b6472" font-style="italic" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">batch scan</text>
+<text x="40" y="1146" font-size="10.5" fill="#5b6472" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">Status badges are per-component, not per-phase — a lane can be "wired, not applied" while individual pieces in it validate cleanly. Full verification log: docs/roadmap.md</text>
+</svg>
+  </div>
+  <aside class="side-panel" id="panel">
+    <div class="empty">
+      <span class="hint-icon">🗺️</span>
+      Hover a component to preview it, or click one to pin the detail here. Click a lane's background to isolate that tier.
+    </div>
+  </aside>
+</div>
+
+<footer>Generated from <code>docs/roadmap.md</code>'s current phase status — every ✅ traces to a specific verification already logged there.</footer>
+
+<script>
+(function () {
+  const STATUS_LABEL = { done: "verified end-to-end", partial: "partially verified", wired: "wired, not applied" };
+  const STATUS_COLOR = { done: "#2f9e5c", partial: "#c9922f", wired: "#9aa2b1" };
+  const CAT_LABEL = {
+    local: "Local Dev", github: "GitHub / CI-CD", azure: "Azure", aws: "AWS",
+    obs: "Observability", security: "Security", finops: "FinOps", platform: "Platform / IDP", aiops: "AI Ops",
+  };
+
+  const panel = document.getElementById("panel");
+  const chips = Array.from(document.querySelectorAll(".chip"));
+  const lanes = Array.from(document.querySelectorAll(".lane"));
+  const laneHits = Array.from(document.querySelectorAll(".lane-hit"));
+  const resetLaneBtn = document.getElementById("reset-lane");
+  const filterPills = Array.from(document.querySelectorAll(".pill[data-filter]"));
+
+  let pinned = null;
+  let filterStatus = "all";
+  let focusedLane = null;
+
+  function renderPanel(chip, isPinned) {
+    if (!chip) {
+      panel.innerHTML = '<div class="empty"><span class="hint-icon">🗺️</span>Hover a component to preview it, or click one to pin the detail here. Click a lane\'s background to isolate that tier.</div>';
+      return;
+    }
+    const d = chip.dataset;
+    const color = STATUS_COLOR[d.status];
+    panel.innerHTML =
+      '<div class="eyebrow" style="color:' + color + '">' + (CAT_LABEL[d.cat] || d.cat) + '</div>' +
+      '<p class="title">' + d.title + '</p>' +
+      '<p class="sub">' + d.sub + '</p>' +
+      '<p class="detail">' + d.detail + '</p>' +
+      '<span class="status-line"><span class="status-dot" style="background:' + color + '"></span>' + STATUS_LABEL[d.status] + '</span>' +
+      (isPinned ? '<div class="pin-hint">Pinned — click the component again, or anywhere else, to unpin.</div>' : '<div class="pin-hint">Hovering — click to pin this.</div>');
+  }
+
+  function applyDimState() {
+    chips.forEach((c) => {
+      const statusMatch = filterStatus === "all" || c.dataset.status === filterStatus;
+      const laneMatch = !focusedLane || c.dataset.cat === focusedLane;
+      c.classList.toggle("dim", !(statusMatch && laneMatch));
+    });
+    lanes.forEach((l) => {
+      l.classList.toggle("dim", focusedLane ? l.dataset.lane !== focusedLane : false);
+    });
+    resetLaneBtn.style.display = focusedLane ? "inline-flex" : "none";
+  }
+
+  chips.forEach((chip) => {
+    chip.addEventListener("mouseenter", () => { if (!pinned) renderPanel(chip, false); });
+    chip.addEventListener("mouseleave", () => { if (!pinned) renderPanel(null, false); });
+    chip.addEventListener("focus", () => { if (!pinned) renderPanel(chip, false); });
+    chip.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (pinned === chip) {
+        pinned = null;
+        chip.classList.remove("selected");
+        renderPanel(null, false);
+      } else {
+        if (pinned) pinned.classList.remove("selected");
+        pinned = chip;
+        chip.classList.add("selected");
+        renderPanel(chip, true);
+      }
+    });
+  });
+
+  laneHits.forEach((hit) => {
+    hit.addEventListener("click", () => {
+      const lane = hit.closest(".lane");
+      const cat = lane.dataset.lane;
+      focusedLane = focusedLane === cat ? null : cat;
+      applyDimState();
+    });
+  });
+
+  resetLaneBtn.addEventListener("click", () => { focusedLane = null; applyDimState(); });
+
+  filterPills.forEach((pill) => {
+    pill.addEventListener("click", () => {
+      filterStatus = pill.dataset.filter;
+      filterPills.forEach((p) => p.classList.toggle("active", p === pill));
+      applyDimState();
+    });
+  });
+  filterPills[0].classList.add("active");
+
+  document.addEventListener("click", () => {
+    if (pinned) {
+      pinned.classList.remove("selected");
+      pinned = null;
+      renderPanel(null, false);
+    }
+  });
+})();
+</script>
+</body>
+</html>

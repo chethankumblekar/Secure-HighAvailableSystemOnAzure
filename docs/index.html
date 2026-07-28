@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TenantForge — Docs</title>
+<style>
+  :root {
+    --page-bg: #eef0f4; --page-ink: #2a2f3a; --page-ink-muted: #6b7280;
+    --card-bg: #ffffff; --card-border: #e2e5ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page-bg: #14161c; --page-ink: #e7e9ef; --page-ink-muted: #9aa0ab;
+      --card-bg: #1f232c; --card-border: #2c313c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 24px 64px;
+    background: var(--page-bg); color: var(--page-ink);
+    font-family: -apple-system, "Segoe UI", ui-sans-serif, sans-serif;
+    display: flex; flex-direction: column; align-items: center; gap: 28px;
+  }
+  header { max-width: 720px; text-align: center; }
+  header h1 { font-size: 26px; font-weight: 800; margin: 0 0 8px; }
+  header p { font-size: 14px; line-height: 1.6; color: var(--page-ink-muted); margin: 0; }
+  .cards { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; max-width: 860px; width: 100%; }
+  a.card {
+    flex: 1 1 260px; min-width: 260px; text-decoration: none; color: inherit;
+    background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px;
+    padding: 20px; box-shadow: 0 8px 28px rgba(0,0,0,0.10);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  a.card:hover { transform: translateY(-2px); box-shadow: 0 12px 34px rgba(0,0,0,0.16); }
+  a.card .eyebrow {
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--page-ink-muted); margin-bottom: 8px;
+  }
+  a.card h2 { font-size: 17px; margin: 0 0 6px; }
+  a.card p { font-size: 13px; line-height: 1.55; color: var(--page-ink-muted); margin: 0; }
+  footer { font-size: 12.5px; color: var(--page-ink-muted); text-align: center; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TenantForge</h1>
+  <p>A multi-tenant platform-engineering reference: Terraform landing zones on two clouds,
+     GitOps delivery, a signed supply chain, SLO-based observability, and a Backstage golden path.</p>
+</header>
+
+<div class="cards">
+  <a class="card" href="architecture-map.html">
+    <div class="eyebrow">Interactive</div>
+    <h2>Architecture map</h2>
+    <p>Every layer as a lane. Hover or click any component for the exact verification behind it.</p>
+  </a>
+  <a class="card" href="architecture-preview.html">
+    <div class="eyebrow">Narrative</div>
+    <h2>Architecture &amp; build log</h2>
+    <p>What was built, in what order, and what each phase actually proved.</p>
+  </a>
+</div>
+
+<footer>Source: <a href="https://github.com/chethankumblekar/tenantforge">github.com/chethankumblekar/tenantforge</a></footer>
+
+</body>
+</html>
